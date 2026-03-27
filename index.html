@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ВЭД · База данных</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg:      #0a0a0b;
+  --surface: #111113;
+  --raised:  #18181c;
+  --border:  rgba(255,255,255,.06);
+  --border2: rgba(255,255,255,.10);
+  --border3: rgba(255,255,255,.16);
+  --text:    #f0f0f2;
+  --text2:   #7a7a8a;
+  --text3:   #3d3d48;
+  --accent:  #4f8ef7;
+  --accent2: #3a72d4;
+  --green:   #3dd68c;
+  --amber:   #f0a429;
+  --red:     #f2504b;
+  --purple:  #9e8cf5;
+  --teal:    #27c4b4;
+  --g-bg:    rgba(79,142,247,.08);
+  --g-green: rgba(61,214,140,.08);
+  --g-amber: rgba(240,164,41,.08);
+  --g-red:   rgba(242,80,75,.08);
+  --g-purple:rgba(158,140,245,.08);
+  --g-teal:  rgba(39,196,180,.08);
+  --r: 10px;
+  --r2: 7px;
+  --r3: 5px;
+  --sh: 0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Instrument Sans',sans-serif;background:var(--bg);color:var(--text);font-size:13px;display:flex;flex-direction:column}
+
+/* ── LOADER ── */
+#loader{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:1000;transition:opacity .4s}
+#loader.hide{opacity:0;pointer-events:none}
+.loader-ring{width:36px;height:36px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loader-text{font-size:13px;color:var(--text2);letter-spacing:.03em}
+
+/* ── HEADER ── */
+header{height:48px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:0;flex-shrink:0;background:var(--surface);position:relative;z-index:10}
+.logo{font-size:13px;font-weight:600;color:var(--text);letter-spacing:-.2px;margin-right:24px;white-space:nowrap}
+.logo em{color:var(--accent);font-style:normal}
+.tabs{display:flex;align-items:stretch;height:100%;gap:0;flex:1;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{display:flex;align-items:center;gap:7px;padding:0 16px;cursor:pointer;font-size:12px;color:var(--text2);border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;user-select:none;position:relative}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--text);border-bottom-color:var(--accent)}
+.tab-icon{font-size:13px;opacity:.7}
+.tab-count{font-size:10px;background:var(--raised);border:1px solid var(--border);border-radius:20px;padding:1px 6px;color:var(--text3);margin-left:2px}
+.tab.active .tab-count{background:var(--g-bg);border-color:rgba(79,142,247,.2);color:var(--accent)}
+.header-actions{display:flex;align-items:center;gap:6px;margin-left:auto;padding-left:16px;border-left:1px solid var(--border);flex-shrink:0}
+.hbtn{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:var(--r3);border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:12px;cursor:pointer;font-family:'Instrument Sans',sans-serif;transition:all .15s;white-space:nowrap}
+.hbtn:hover{color:var(--text);border-color:var(--border3)}
+.hbtn.add{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
+.hbtn.add:hover{background:var(--accent2)}
+.hbtn svg{width:12px;height:12px;opacity:.7}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0}
+
+/* ── LAYOUT ── */
+.app{display:flex;flex:1;overflow:hidden}
+
+/* ── SIDEBAR ── */
+aside{width:200px;min-width:200px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.aside-section{padding:14px 12px 6px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+.nav{display:flex;flex-direction:column;gap:1px;padding:0 6px}
+.ni{display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:var(--r2);cursor:pointer;color:var(--text2);font-size:12px;transition:all .12s;border:1px solid transparent}
+.ni:hover{background:var(--raised);color:var(--text)}
+.ni.active{background:var(--raised);color:var(--text);border-color:var(--border)}
+.ni-icon{font-size:13px;width:16px;text-align:center;flex-shrink:0}
+.ni-label{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ni-badge{font-size:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1px 5px;color:var(--text3);flex-shrink:0}
+.ni.active .ni-badge{background:var(--g-bg);border-color:rgba(79,142,247,.2);color:var(--accent)}
+.aside-sep{margin:6px 12px;height:1px;background:var(--border)}
+
+/* ── MAIN ── */
+main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+
+/* ── TOOLBAR ── */
+.toolbar{height:44px;padding:0 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;background:var(--surface)}
+.toolbar-title{font-size:13px;font-weight:600;white-space:nowrap}
+.search{flex:1;max-width:320px;position:relative}
+.search svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);opacity:.35;pointer-events:none;width:13px;height:13px}
+.search input{width:100%;padding:6px 10px 6px 30px;background:var(--raised);border:1px solid var(--border);border-radius:var(--r2);color:var(--text);font-size:12px;outline:none;font-family:'Instrument Sans',sans-serif;transition:border .15s}
+.search input::placeholder{color:var(--text3)}
+.search input:focus{border-color:rgba(79,142,247,.4);background:var(--bg)}
+.chips{display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{padding:3px 10px;border-radius:20px;font-size:11px;cursor:pointer;background:transparent;border:1px solid var(--border);color:var(--text2);transition:all .12s;white-space:nowrap;flex-shrink:0}
+.chip:hover{border-color:var(--border2);color:var(--text)}
+.chip.on{background:var(--g-bg);border-color:rgba(79,142,247,.25);color:var(--accent);font-weight:500}
+.sort-btn{padding:4px 8px;border-radius:var(--r2);border:1px solid var(--border);background:transparent;color:var(--text2);font-size:11px;cursor:pointer;font-family:'Instrument Sans',sans-serif;white-space:nowrap;transition:all .12s}
+.sort-btn:hover{border-color:var(--border2);color:var(--text)}
+
+/* ── BODY WRAP ── */
+.body-wrap{flex:1;display:flex;overflow:hidden}
+.content{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+
+/* ── STATS BAR ── */
+.stats{display:flex;gap:1px;background:var(--border);border-bottom:1px solid var(--border);flex-shrink:0}
+.stat{flex:1;background:var(--surface);padding:10px 14px}
+.stat-l{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.stat-v{font-size:18px;font-weight:600;font-family:'JetBrains Mono',monospace;line-height:1}
+.stat-s{font-size:10px;color:var(--text3);margin-top:2px}
+
+/* ── TABLE ── */
+.tbl-wrap{overflow-x:auto;flex:1}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead{position:sticky;top:0;z-index:2}
+thead th{padding:9px 12px;text-align:left;font-size:10px;font-weight:600;color:var(--text3);background:var(--surface);border-bottom:1px solid var(--border);white-space:nowrap;text-transform:uppercase;letter-spacing:.05em;cursor:pointer;user-select:none;transition:color .12s}
+thead th:hover{color:var(--text2)}
+thead th.sort-asc::after{content:' ↑';color:var(--accent)}
+thead th.sort-desc::after{content:' ↓';color:var(--accent)}
+tbody tr{border-bottom:1px solid var(--border);cursor:pointer;transition:background .08s}
+tbody tr:hover{background:var(--raised)}
+tbody tr.sel{background:rgba(79,142,247,.06)!important}
+tbody td{padding:8px 12px;vertical-align:middle}
+.td-main{font-weight:500;color:var(--text)}
+.td-sub{font-size:10px;color:var(--text2);margin-top:2px}
+.td-dim{color:var(--text2)}
+.td-mono{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2)}
+.empty{padding:60px 20px;text-align:center;color:var(--text3);font-size:13px}
+.empty-icon{font-size:28px;margin-bottom:8px;opacity:.4}
+
+/* ── BADGES ── */
+.b{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;white-space:nowrap}
+.b-green{background:var(--g-green);color:var(--green)}
+.b-amber{background:var(--g-amber);color:var(--amber)}
+.b-red{background:var(--g-red);color:var(--red)}
+.b-blue{background:var(--g-bg);color:var(--accent)}
+.b-purple{background:var(--g-purple);color:var(--purple)}
+.b-teal{background:var(--g-teal);color:var(--teal)}
+.b-gray{background:var(--raised);color:var(--text2);border:1px solid var(--border)}
+
+/* ── DEVIATION ── */
+.dv-pos{color:var(--green);font-weight:600;font-family:'JetBrains Mono',monospace;font-size:11px}
+.dv-neg{color:var(--red);font-weight:600;font-family:'JetBrains Mono',monospace;font-size:11px}
+.dv-zero{color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11px}
+
+/* ── DETAIL PANEL ── */
+.detail{width:320px;min-width:320px;border-left:1px solid var(--border);background:var(--surface);display:none;flex-direction:column;overflow:hidden;flex-shrink:0}
+.detail.open{display:flex}
+.dp-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;gap:11px;align-items:flex-start}
+.dp-ava{width:38px;height:38px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0;border:1px solid var(--border)}
+.dp-info{flex:1;min-width:0}
+.dp-name{font-size:13px;font-weight:600;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dp-sub{font-size:11px;color:var(--text2);margin-top:2px}
+.dp-x{background:none;border:none;color:var(--text3);cursor:pointer;font-size:17px;padding:0 2px;line-height:1;margin-left:auto;flex-shrink:0;transition:color .12s}
+.dp-x:hover{color:var(--text)}
+.dp-body{flex:1;overflow-y:auto}
+.dp-sec{padding:12px 16px;border-bottom:1px solid var(--border)}
+.dp-sec:last-child{border-bottom:none}
+.dp-sec-title{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:9px}
+.dp-row{display:flex;justify-content:space-between;align-items:flex-start;padding:3px 0;gap:8px}
+.dp-k{font-size:11px;color:var(--text2);flex-shrink:0}
+.dp-v{font-size:11px;color:var(--text);text-align:right;word-break:break-word;max-width:64%}
+.dp-text{font-size:11px;color:var(--text2);background:var(--raised);border-radius:var(--r2);padding:8px;line-height:1.7;word-break:break-word;margin-top:4px;border:1px solid var(--border)}
+.dp-actions{padding:12px 16px;display:flex;gap:6px;border-top:1px solid var(--border);flex-shrink:0}
+.dp-btn{flex:1;padding:7px;border-radius:var(--r2);border:1px solid var(--border2);background:transparent;color:var(--text);font-size:12px;cursor:pointer;font-family:'Instrument Sans',sans-serif;transition:all .12s;text-align:center}
+.dp-btn:hover{background:var(--raised)}
+.dp-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
+.dp-btn.primary:hover{background:var(--accent2)}
+.dp-btn.danger{border-color:rgba(242,80,75,.3);color:var(--red)}
+.dp-btn.danger:hover{background:var(--g-red)}
+
+/* ── PAGINATION ── */
+.pager{padding:9px 14px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--text3);background:var(--surface);flex-shrink:0}
+.pager-btns{display:flex;gap:2px}
+.pb{padding:3px 8px;border-radius:var(--r3);border:1px solid var(--border);background:transparent;color:var(--text2);font-size:11px;cursor:pointer;transition:all .12s}
+.pb:hover:not(:disabled){background:var(--raised)}
+.pb.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.pb:disabled{opacity:.3;cursor:default}
+
+/* ── MODAL ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.modal-bg.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);width:520px;max-width:100%;max-height:90vh;overflow-y:auto;box-shadow:var(--sh);animation:modal-in .2s ease}
+@keyframes modal-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.m-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.m-title{font-size:14px;font-weight:600}
+.m-x{background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;line-height:1;padding:0 2px;transition:color .12s}
+.m-x:hover{color:var(--text)}
+.m-body{padding:20px}
+.m-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.m-field{display:flex;flex-direction:column;gap:5px}
+.m-field.full{grid-column:1/-1}
+.m-label{font-size:11px;color:var(--text2);font-weight:500}
+.m-input,.m-select,.m-textarea{padding:8px 10px;background:var(--raised);border:1px solid var(--border);border-radius:var(--r2);color:var(--text);font-size:12px;outline:none;font-family:'Instrument Sans',sans-serif;transition:border .15s;width:100%}
+.m-input:focus,.m-select:focus,.m-textarea:focus{border-color:rgba(79,142,247,.4);background:var(--bg)}
+.m-textarea{resize:vertical;min-height:72px;line-height:1.6}
+.m-select option{background:var(--raised)}
+.m-foot{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.m-btn{padding:8px 18px;border-radius:var(--r2);border:1px solid var(--border2);background:transparent;color:var(--text);font-size:12px;cursor:pointer;font-family:'Instrument Sans',sans-serif;font-weight:500;transition:all .15s}
+.m-btn:hover{background:var(--raised)}
+.m-btn.save{background:var(--accent);border-color:var(--accent);color:#fff}
+.m-btn.save:hover{background:var(--accent2)}
+.m-btn:disabled{opacity:.5;cursor:default}
+
+/* ── CALC PAGE ── */
+.calc-wrap{padding:20px;overflow-y:auto;flex:1}
+.calc-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;margin-bottom:12px}
+.calc-section-title{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px}
+.calc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.calc-field{display:flex;flex-direction:column;gap:5px}
+.calc-label{font-size:11px;color:var(--text2)}
+.calc-input,.calc-select{padding:8px 10px;background:var(--raised);border:1px solid var(--border);border-radius:var(--r2);color:var(--text);font-size:12px;outline:none;font-family:'JetBrains Mono',monospace;transition:border .15s;width:100%}
+.calc-input:focus,.calc-select:focus{border-color:rgba(79,142,247,.4)}
+.calc-select{font-family:'Instrument Sans',sans-serif}
+.calc-result{background:var(--bg);border:1px solid var(--border2);border-radius:var(--r);padding:18px 20px;margin-bottom:12px}
+.calc-result-title{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;font-weight:600}
+.result-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.rc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);padding:12px}
+.rc-l{font-size:10px;color:var(--text3);margin-bottom:4px}
+.rc-v{font-size:15px;font-weight:600;font-family:'JetBrains Mono',monospace}
+.rc-v.acc{color:var(--accent)}
+.rc-v.grn{color:var(--green)}
+.br-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
+.br-row:last-child{border-bottom:none;font-weight:600;padding-top:10px}
+.br-l{color:var(--text2)}
+.br-v{font-family:'JetBrains Mono',monospace;color:var(--text)}
+
+/* ── HOME PAGE ── */
+.home-wrap{padding:24px;overflow-y:auto;flex:1}
+.home-title{font-size:20px;font-weight:600;margin-bottom:4px}
+.home-sub{font-size:12px;color:var(--text2);margin-bottom:24px}
+.home-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:24px}
+.hc{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;cursor:pointer;transition:all .15s}
+.hc:hover{border-color:var(--border2);background:var(--raised);transform:translateY(-1px)}
+.hc-icon{font-size:20px;margin-bottom:10px}
+.hc-title{font-size:12px;font-weight:600;margin-bottom:2px}
+.hc-sub{font-size:11px;color:var(--text2)}
+.hc-count{font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--accent);margin-top:10px}
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px}
+.kpi-l{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;font-weight:600}
+.kpi-v{font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.kpi-s{font-size:10px;color:var(--text3);margin-top:3px}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:20px;right:20px;background:var(--raised);border:1px solid var(--border2);border-radius:var(--r2);padding:10px 16px;font-size:12px;color:var(--text);opacity:0;transition:opacity .3s;pointer-events:none;z-index:500;box-shadow:var(--sh)}
+#toast.show{opacity:1}
+#toast.ok{border-color:rgba(61,214,140,.3);color:var(--green)}
+#toast.err{border-color:rgba(242,80,75,.3);color:var(--red)}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:var(--border3)}
+
+/* ── FADE IN ── */
+.fade-in{animation:fade .25s ease both}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ── PAGE ── */
+.page{display:none;flex:1;overflow:hidden;flex-direction:column}
+.page.active{display:flex}
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="loader-ring"></div>
+  <div class="loader-text">Загрузка базы данных…</div>
+</div>
+
+<header>
+  <div class="logo">ВЭД <em>/</em> База</div>
+  <div class="tabs" id="header-tabs">
+    <div class="tab active" data-page="home">
+      <span class="tab-icon">⌂</span> Главная
+    </div>
+    <div class="tab" data-page="contractors">
+      <span class="tab-icon">👥</span> Контрагенты
+      <span class="tab-count" id="tc-contractors">—</span>
+    </div>
+    <div class="tab" data-page="shipments">
+      <span class="tab-icon">📦</span> Поставки
+      <span class="tab-count" id="tc-shipments">—</span>
+    </div>
+    <div class="tab" data-page="rates">
+      <span class="tab-icon">💰</span> Цены доставки
+      <span class="tab-count" id="tc-rates">—</span>
+    </div>
+    <div class="tab" data-page="contracts">
+      <span class="tab-icon">📄</span> Контракты
+      <span class="tab-count" id="tc-contracts">—</span>
+    </div>
+    <div class="tab" data-page="calc">
+      <span class="tab-icon">🧮</span> Калькулятор
+    </div>
+  </div>
+  <div class="header-actions">
+    <div class="status-dot" id="conn-dot" title="Подключено к Supabase"></div>
+    <button class="hbtn" onclick="exportCSV()">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v8M5 7l3 3 3-3M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>
+      Экспорт
+    </button>
+    <button class="hbtn add" onclick="openAdd()">+ Добавить</button>
+  </div>
+</header>
+
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside>
+  <div class="aside-section">Контрагенты</div>
+  <div class="nav">
+    <div class="ni active" data-sec="contractors" data-filter="">
+      <span class="ni-icon">👥</span><span class="ni-label">Все</span>
+      <span class="ni-badge" id="nb-all">—</span>
+    </div>
+    <div class="ni" data-sec="contractors" data-filter="Поставщик">
+      <span class="ni-icon">🏭</span><span class="ni-label">Поставщики</span>
+      <span class="ni-badge" id="nb-sup">—</span>
+    </div>
+    <div class="ni" data-sec="contractors" data-filter="Перевозчик">
+      <span class="ni-icon">🚛</span><span class="ni-label">Перевозчики</span>
+      <span class="ni-badge" id="nb-car">—</span>
+    </div>
+    <div class="ni" data-sec="contractors" data-filter="СВХ">
+      <span class="ni-icon">🏪</span><span class="ni-label">СВХ</span>
+      <span class="ni-badge" id="nb-svh">—</span>
+    </div>
+    <div class="ni" data-sec="contractors" data-filter="Тамож. брокер">
+      <span class="ni-icon">📋</span><span class="ni-label">Брокеры</span>
+      <span class="ni-badge" id="nb-brk">—</span>
+    </div>
+    <div class="ni" data-sec="contractors" data-filter="Агент/Услуги">
+      <span class="ni-icon">🤝</span><span class="ni-label">Агенты</span>
+      <span class="ni-badge" id="nb-agt">—</span>
+    </div>
+    <div class="ni" data-sec="contractors" data-filter="Сертификация">
+      <span class="ni-icon">🏆</span><span class="ni-label">Сертификация</span>
+      <span class="ni-badge" id="nb-crt">—</span>
+    </div>
+    <div class="ni" data-sec="contractors" data-filter="Переводчик">
+      <span class="ni-icon">📝</span><span class="ni-label">Переводчики</span>
+      <span class="ni-badge" id="nb-trl">—</span>
+    </div>
+  </div>
+  <div class="aside-sep"></div>
+  <div class="aside-section">Операционные</div>
+  <div class="nav">
+    <div class="ni" data-sec="shipments" data-filter="">
+      <span class="ni-icon">📦</span><span class="ni-label">Трекер поставок</span>
+      <span class="ni-badge" id="nb-shp">—</span>
+    </div>
+    <div class="ni" data-sec="shipments" data-filter="В РАБОТЕ">
+      <span class="ni-icon">⏳</span><span class="ni-label">В работе</span>
+      <span class="ni-badge" id="nb-shp-w">—</span>
+    </div>
+    <div class="ni" data-sec="rates" data-filter="">
+      <span class="ni-icon">💰</span><span class="ni-label">Цены доставки</span>
+      <span class="ni-badge" id="nb-rts">—</span>
+    </div>
+    <div class="ni" data-sec="contracts" data-filter="">
+      <span class="ni-icon">📄</span><span class="ni-label">Контракты</span>
+      <span class="ni-badge" id="nb-ctr">—</span>
+    </div>
+    <div class="ni" data-sec="calc" data-filter="">
+      <span class="ni-icon">🧮</span><span class="ni-label">Калькулятор с/с</span>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main>
+
+  <!-- HOME -->
+  <div class="page active" id="page-home">
+    <div class="home-wrap" id="home-content"></div>
+  </div>
+
+  <!-- CONTRACTORS -->
+  <div class="page" id="page-contractors">
+    <div class="toolbar">
+      <div class="toolbar-title" id="title-contractors">Контрагенты</div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="q-contractors" placeholder="Поиск по названию, контакту…" oninput="render('contractors')">
+      </div>
+      <div class="chips" id="chips-contractors"></div>
+    </div>
+    <div class="body-wrap">
+      <div class="content">
+        <div class="stats" id="stats-contractors"></div>
+        <div class="tbl-wrap"><div id="tbl-contractors"></div></div>
+        <div class="pager" id="pager-contractors"></div>
+      </div>
+      <div class="detail" id="dp-contractors"></div>
+    </div>
+  </div>
+
+  <!-- SHIPMENTS -->
+  <div class="page" id="page-shipments">
+    <div class="toolbar">
+      <div class="toolbar-title">Трекер поставок</div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="q-shipments" placeholder="Поиск…" oninput="render('shipments')">
+      </div>
+      <div class="chips" id="chips-shipments"></div>
+    </div>
+    <div class="body-wrap">
+      <div class="content">
+        <div class="stats" id="stats-shipments"></div>
+        <div class="tbl-wrap"><div id="tbl-shipments"></div></div>
+        <div class="pager" id="pager-shipments"></div>
+      </div>
+      <div class="detail" id="dp-shipments"></div>
+    </div>
+  </div>
+
+  <!-- RATES -->
+  <div class="page" id="page-rates">
+    <div class="toolbar">
+      <div class="toolbar-title">Реестр цен доставки</div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="q-rates" placeholder="Поиск…" oninput="render('rates')">
+      </div>
+      <div class="chips" id="chips-rates"></div>
+    </div>
+    <div class="body-wrap">
+      <div class="content">
+        <div class="stats" id="stats-rates"></div>
+        <div class="tbl-wrap"><div id="tbl-rates"></div></div>
+        <div class="pager" id="pager-rates"></div>
+      </div>
+      <div class="detail" id="dp-rates"></div>
+    </div>
+  </div>
+
+  <!-- CONTRACTS -->
+  <div class="page" id="page-contracts">
+    <div class="toolbar">
+      <div class="toolbar-title">Контракты</div>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="q-contracts" placeholder="Поиск…" oninput="render('contracts')">
+      </div>
+    </div>
+    <div class="body-wrap">
+      <div class="content">
+        <div class="stats" id="stats-contracts"></div>
+        <div class="tbl-wrap"><div id="tbl-contracts"></div></div>
+        <div class="pager" id="pager-contracts"></div>
+      </div>
+      <div class="detail" id="dp-contracts"></div>
+    </div>
+  </div>
+
+  <!-- CALC -->
+  <div class="page" id="page-calc">
+    <div class="toolbar"><div class="toolbar-title">Калькулятор себестоимости</div></div>
+    <div class="calc-wrap">
+      <div class="calc-section">
+        <div class="calc-section-title">Товар и поставщик</div>
+        <div class="calc-grid">
+          <div class="calc-field" style="grid-column:1/-1">
+            <label class="calc-label">Наименование товара</label>
+            <input class="calc-input" id="c-name" placeholder="Швейная машина SM-2700…" oninput="calcUpdate()" style="font-family:'Instrument Sans',sans-serif">
+          </div>
+          <div class="calc-field">
+            <label class="calc-label">Цена поставщика</label>
+            <input class="calc-input" id="c-price" type="number" placeholder="50000" oninput="calcUpdate()">
+          </div>
+          <div class="calc-field">
+            <label class="calc-label">Валюта</label>
+            <select class="calc-select" id="c-currency" onchange="calcUpdate()">
+              <option value="CNY">CNY — Юань</option>
+              <option value="USD">USD — Доллар</option>
+              <option value="EUR">EUR — Евро</option>
+              <option value="TRY">TRY — Лира</option>
+            </select>
+          </div>
+          <div class="calc-field">
+            <label class="calc-label">Количество</label>
+            <input class="calc-input" id="c-qty" type="number" value="1" oninput="calcUpdate()">
+          </div>
+          <div class="calc-field">
+            <label class="calc-label">Курс валюты к USD</label>
+            <input class="calc-input" id="c-rate-usd" type="number" placeholder="7.24" oninput="calcUpdate()">
+          </div>
+          <div class="calc-field">
+            <label class="calc-label">Курс USD к RUB</label>
+            <input class="calc-input" id="c-rate-rub" type="number" placeholder="89.5" oninput="calcUpdate()">
+          </div>
+        </div>
+      </div>
+      <div class="calc-section">
+        <div class="calc-section-title">Логистика и растаможка</div>
+        <div class="calc-grid">
+          <div class="calc-field"><label class="calc-label">Доставка до границы РФ, USD</label><input class="calc-input" id="c-freight" type="number" placeholder="2000" oninput="calcUpdate()"></div>
+          <div class="calc-field"><label class="calc-label">Доставка по РФ, руб.</label><input class="calc-input" id="c-domestic" type="number" placeholder="45000" oninput="calcUpdate()"></div>
+          <div class="calc-field"><label class="calc-label">Таможенная пошлина, %</label><input class="calc-input" id="c-duty" type="number" placeholder="0" oninput="calcUpdate()"></div>
+          <div class="calc-field"><label class="calc-label">НДС, %</label><input class="calc-input" id="c-vat" type="number" value="20" oninput="calcUpdate()"></div>
+          <div class="calc-field"><label class="calc-label">Агентское вознаграждение, %</label><input class="calc-input" id="c-agent" type="number" placeholder="3" oninput="calcUpdate()"></div>
+          <div class="calc-field"><label class="calc-label">Услуги брокера, руб.</label><input class="calc-input" id="c-broker" type="number" placeholder="15000" oninput="calcUpdate()"></div>
+          <div class="calc-field"><label class="calc-label">Услуги СВХ, руб.</label><input class="calc-input" id="c-svh-cost" type="number" placeholder="5000" oninput="calcUpdate()"></div>
+          <div class="calc-field"><label class="calc-label">Страхование, руб.</label><input class="calc-input" id="c-insurance" type="number" placeholder="0" oninput="calcUpdate()"></div>
+          <div class="calc-field"><label class="calc-label">Прочие расходы, руб.</label><input class="calc-input" id="c-other" type="number" placeholder="0" oninput="calcUpdate()"></div>
+        </div>
+      </div>
+      <div class="calc-result">
+        <div class="calc-result-title">Результат расчёта</div>
+        <div class="result-cards">
+          <div class="rc"><div class="rc-l">Стоимость товара USD</div><div class="rc-v acc" id="r-usd">—</div></div>
+          <div class="rc"><div class="rc-l">Стоимость товара RUB</div><div class="rc-v" id="r-rub">—</div></div>
+          <div class="rc"><div class="rc-l">Итого себестоимость</div><div class="rc-v grn" id="r-total">—</div></div>
+          <div class="rc"><div class="rc-l">С/С за единицу</div><div class="rc-v acc" id="r-unit">—</div></div>
+        </div>
+        <div id="r-breakdown"></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<div id="toast"></div>
+
+<!-- MODAL -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <div class="m-head">
+      <div class="m-title" id="m-title">Добавить запись</div>
+      <button class="m-x" onclick="closeModal()">✕</button>
+    </div>
+    <div class="m-body" id="m-body"></div>
+    <div class="m-foot">
+      <button class="m-btn" onclick="closeModal()">Отмена</button>
+      <button class="m-btn save" id="m-save">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────
+const SUPA_URL =  + SUPABASE_URL + ;
+const SUPA_KEY =  + SUPABASE_KEY + ;
+
+// ── FALLBACK DATA (если Supabase недоступен) ──────────────────────────────
+const FALLBACK = {"contractors":[{"id":"suppliers_0","type":"Поставщик","name":"Mert Makina","spec":"Оборудование / Запчасти","country":"Турция","address":"ANBAR S.B. MAHALLESİ 12. CAD. NO: 33 MELİKGAZİ / KAYSERI / TURKIYE","contacts":"Магомед +90 539 847 5161 magomed@mertmakina.com |  Загрузка и отгрузка, по документам, по габаритам и весу Онур/Onur +90 530 919 81 00 onur@mertmakina.com | Сервис и запчасти +90 533 275 80 25  servic","site":"https://mertmakina.com/","notes":"Швейное оборудование","status":"Активный"},{"id":"suppliers_1","type":"Поставщик","name":"LIAN ROU, Guangzhou, Guangdong","spec":"Оборудование / Запчасти","country":"Китай","address":"NO. 13, YUNZHAN ROAD, HUANGPU DISTRICT, GUANGZHOU","contacts":"Tom Tang tel. 0086 18620040303 tom@lianrou.com | Anja 0086 15083854597 запчасти","site":"","notes":"Пружинное оборудование, упаковочное оборудование","status":"Активный"},{"id":"suppliers_2","type":"Поставщик","name":"Sigma, TAIZHOU, ZHEJIANG","spec":"Оборудование / Запчасти","country":"Китай","address":"RM.201, BUILDING 7, JINGYUANHUAYUAN, JIAOJIANG,TAIZHOU, ZHEJIANG, 318000, CHINA","contacts":"Molly Chen H/P: +86 188 6998 0657 (WhatsApp), sales02@sigma-machinery.com, wechat ID:  | SM18869980657","site":"","notes":"Швейное оборудование, окантовочное оборудование","status":"Активный"},{"id":"suppliers_3","type":"Поставщик","name":"Foshan City Kehua Smart Quilting Equipment Co.,Ltd, Guangdong Province","spec":"Оборудование / Запчасти","country":"Китай","address":"He Cang Industrial Park, Mingcheng Town, Gaoming District, Foshan City, Guangdong Province, China","contacts":"Bernice Lee kehua01@kehuasmart.com +86-757-88832770","site":"http://www.kehuasmart.com","notes":"Швейное оборудование","status":"Активный"},{"id":"suppliers_4","type":"Поставщик","name":"ZOLYTECH IMPORT AND EXPORT CO., LTD, FOSHAN","spec":"Оборудование / Запчасти","country":"Китай","address":"ROOM 1608-1609,HECHUANG YINGKE FURNITURE MATERIALS TRD.CNTR.,LONGJIANG TOWN, SHUNDE, FOSHAN, CHINA","contacts":"Cameron Luo (Head of Export Department) cameron.luo@zolytechmachinery.com | Mob./Whatsapp/wechat: 0086-136 6061 1078 | Tel: +8613660611078","site":"www.quiltingmachine.com","notes":"Швейное оборудование","status":"Активный"},{"id":"suppliers_5","type":"Поставщик","name":"TENGLONG (WENZHOU TENGLONG ELECTRONICS METER.. LTD.), Zhejiang","spec":"Запчасти","country":"Китай","address":"Floor 7, No. 1, Taili Road, Lucheng Ind. Zone, Wenzhou, Zhejiang, China","contacts":"Ms. Jiali TENG Manager | Мобильный телефон: 13706786795 | Телефон: 86-0577-88777958","site":"http://www.tenglong.net.cn","notes":"(измерительная электроника)","status":"Активный"},{"id":"suppliers_6","type":"Поставщик","name":"Naigu (FOSHAN CITY CHILI TECHNOLOGY CO. LTD), Foshan city, Guangdong","spec":"Оборудование / Запчасти","country":"Китай","address":"No. 282-8, 325 national highway, longjiang town, shunde district, Foshan city, Guangdong, China","contacts":"Summer LIN + 86 13929161592, wechat ID: NG-Summer | +86 18576581731 (WhatsApp) | nancy@gdnaimei.com","site":"www.gdnaimei.com\n www.chili-film.com","notes":"упаковочное оборудование","status":"Активный"},{"id":"suppliers_7","type":"Поставщик","name":"Sofa Machinery (SHENZHEN XINQUNLI MACHINERY CO., LTD.), SHENZHEN, Китай","spec":"Оборудование / Запчасти","country":"Китай","address":"E1-2 FLOOR , BUILDING.3, TECHNOLOGY ROAD ,  GRAND INDUSTRIAL ZONE, PINGSHAN DISTRICT, SHENZHEN ,CHIN","contacts":"Mrs. Irene Feng | TEL:+86-755-84192359 (Direct line) | Wechat : 18038178076","site":"sofafillingmachine.com","notes":"Резка поролона","status":"Активный"},{"id":"suppliers_8","type":"Поставщик","name":"Songwei CNC Machinery (shanghai) Co., Ltd","spec":"Запчасти","country":"Китай","address":"Building 19, No,199 East Guangfulin Rd,\nSongjiang District, 201613,Shanghai, China.","contacts":"Monica, wechat ID:  wxid_0zfvauuxjci112 | Phone:+8617521600721 | Email: marketing@industrycontroller.com","site":"","notes":"(электроника, серводвижки, датчики)","status":"Активный"},{"id":"suppliers_9","type":"Поставщик","name":"Jinan Huajin CNC Equipment Co. LTD","spec":"Запчасти","country":"Китай","address":"ROOM 301, BLOCK 2, XIN DU DISTRICT, SHIZHONG DISTRICT, JINAN, SHANDONG, CHINA","contacts":"ANNA HOU, phone: 15964515236 | Wechat ID: dorado1990","site":"","notes":"(ремни для станков Хуаджан (аналоги Лиан Роу)","status":"Активный"},{"id":"suppliers_10","type":"Поставщик","name":"ZHEJIANG BAIHUI SEWING MACHINE CO.,LTD.","spec":"Оборудование / Запчасти","country":"Китай","address":"LIUYANG INDUSTRIAL AREA,JIAOJIANG,TAIZHOU,ZHEJIANG,CHINA","contacts":"International trade department: Mr Rainy Zhang |                Mobile: +86-13586003086 |                Wechat: 13586003086 |                Emai: baihui@cnbaihui.com","site":"http://www.cnbaihui.com/en/","notes":"Швейное оборудование, запчасти","status":"Активный"},{"id":"suppliers_11","type":"Поставщик","name":"YANCHENG JEAKAR INTERNATIONAL TRADE CO., LTD","spec":"Оборудование / Запчасти","country":"Китай","address":"ROOM 2018, KING MANHATTAN APARTMENT, NO.2, RENMIN SOUTH ROAD, YANCHENG, JIANGSU, CHINA","contacts":"Contact person: JENNY TeL：0086 515 88288789/008617712500688 | Email:Jenny@jeakar.com","site":"www.jeakar.com","notes":"Ультразвуковое оборудование","status":"Активный"},{"id":"suppliers_12","type":"Поставщик","name":"HENGCHANG MACHINERY FACTORY","spec":"Оборудование / Запчасти","country":"Китай","address":"Xialingbei IndustryArea, Liaobu Town, Dongguan City, Guangdong, China.","contacts":"TEL:86-769-83307931 83238650 FAX:86-769-83238630 | Email: hc@machine-quilting.com","site":"http://www.hcjixie.com","notes":"Швейное оборудование","status":"Активный"},{"id":"suppliers_13","type":"Поставщик","name":"MOOYE Sewing Machine Parts","spec":"Запчасти","country":"Китай","address":"","contacts":"Changchun Liu, wechat ID: Mooyeparts | mooyeparts@gmail.com  | WhatsApp: +8613315650969","site":"www.wwsew.com","notes":"(для швейных станков)","status":"Активный"},{"id":"suppliers_14","type":"Поставщик","name":"Yingmao(Shanghai)Machinery Manufacturing CO.,Ltd","spec":"Оборудование","country":"Китай","address":"3511 nanfeng road,fengxian district,201414 shanghai ,china","contacts":"Fu Xiaoli. +86 13524193516","site":"","notes":"Упаковочное оборудование","status":"Активный"},{"id":"suppliers_15","type":"Поставщик","name":"Zhejiang good pneumatic Components Co., LTD","spec":"Запчасти","country":"Китай","address":"Road Corner Village, Beibaixiang Town, Yueqing City, Zhejiang Province","contacts":"English name Fanny Chinese name: Fang Chunyan | Contact number: 13979293782 | Email: 591881112@qq.com | Email: goodpneumatics@gmail.com","site":"","notes":"пневмоцилиндры","status":"Активный"},{"id":"suppliers_16","type":"Поставщик","name":"Outeng Automation Control Technology Co., LTD","spec":"Запчасти","country":"Китай","address":"NO.2060 TongChuan Road ShangHai China","contacts":"Wang(+86 130 6164 3949)","site":"","notes":"Bosch Rexroth","status":"Активный"},{"id":"suppliers_17","type":"Поставщик","name":"DONGGUAN HENGSHENG MACHINERY CO., LTD","spec":"Оборудование","country":"Китай","address":"No.3 Hengsheng Street, Hengsheng Industrial Park, Xiaoxiang, Wanjiang, Dongguan, China","contacts":"Tel/Fax：+86-769-23625702 E-mail：webmaster@hensheng.com","site":"","notes":"Резка поролона","status":"Активный"},{"id":"suppliers_18","type":"Поставщик","name":"NANJING GENMAX MACHINERY CO.,LTD","spec":"Оборудование","country":"Китай","address":"No.8 YuanHua Road,XianLin University Town,XianLin Street,Qixia District,Nanjing,Jiangsu,China","contacts":"Tel: +86-25-65014007 Email: genmax@gmaxmach.com | sales3@gmaxmach.com","site":"","notes":"Швейное оборудование","status":"Активный"},{"id":"suppliers_19","type":"Поставщик","name":"NANTONG MUYE MACHINERY CO., LTD","spec":"Оборудование","country":"Китай","address":"NO.168,DINGXIN ROAD,DINGYAN TOWN,RUGAO,NANTONG CITY, JIANGSU PROVINCE, CHINA.","contacts":"TEL：0086-0513—88562022","site":"","notes":"Резка поролона","status":"Активный"},{"id":"suppliers_20","type":"Поставщик","name":"Nantong Healthcare Machinery Co., Ltd","spec":"Оборудование","country":"Китай","address":"No.89 Chencao Road, Dingyan, Rugao City, Jiangsu, CHINA.","contacts":"Tel: +86-513-88532596 | Fax: +86-513-88532599 | Mobile phone: +86-13584742770 +86-13773828362(Wechat) | Contact: Changbin Lin","site":"https://www.hkfoam.cn/contact.html","notes":"Резка поролона","status":"Активный"},{"id":"suppliers_21","type":"Поставщик","name":"DONGGUAN U-LONG MACHINERY Co ., LTD.","spec":"Оборудование","country":"Китай","address":"Dafen Industrial Zone, Fenxi Road, Wanjiang District, Dongguan City, Guangdong Province","contacts":"International Business Department: | Miss Mo: Mobile 15017132061 | E-mail：u-long@u-long.com.cn | Mr. Li: Cell 15899928362 | E-mail：long@u-long.com.cn","site":"https://en.u-long.com.cn/ContactUs.html","notes":"Резка поролона","status":"Активный"},{"id":"suppliers_22","type":"Поставщик","name":"QUANZHOU YONGTAI MACHINERY CO,.LTD","spec":"Оборудование","country":"Китай","address":"1#,DongXing Road,DongBian,FuQian Town, LiCheng District,QuanZhou,Fujian,China","contacts":"Tel: 86 0595 22421936 | Fax: 86 0595 22426525 | Email address :qzyongtai01@163.com | Ms. Maggie, WeChat ID: jxp0922","site":"www.ytgluemachine.com","notes":"Клеевое оборудование","status":"Активный"},{"id":"suppliers_23","type":"Поставщик","name":"ANN-CHAIN ENTERPRISE CO., LTD.","spec":"Запчасти","country":"Тайвань","address":"No. 280號, Huanhe S Rd, Changhua City, Changhua County, Тайвань 500","contacts":"Cathy Lin, +886-4-7521 297  ext. 114 | cathy@ann-chain.com","site":"https://www.ann-chain.com/","notes":"Пневматический обжимной пистолет для боннельных пружин","status":"Активный"},{"id":"suppliers_24","type":"Поставщик","name":"Nanjing BCD Bedding Machinery Co., Ltd.","spec":"Оборудование","country":"Китай","address":"No. 9 Baixia Rd., Nanjing, Jiangsu, China","contacts":"Shuiia Wu 0086131829927446 | E-mail:sales@bcd-machinery.com","site":"https://www.bcd-machinery.com/contactus.html","notes":"Упаковочное оборудование","status":"Активный"},{"id":"suppliers_25","type":"Поставщик","name":"DYNEMECH SYSTEMS PVT. LTD.","spec":"Запчасти","country":"Индия","address":"Unit I: Plot No.: 136, HSIIDC, Rai Industrial Area, Sonepat, Haryana- 131029\nUnit II: Plot No.: 44, ","contacts":"kanchan | admin@dynemech.com | sales.dynemech@gmail.com","site":"www.vibrationmountsindia.com","notes":"Пневмоподушки","status":"Активный"},{"id":"suppliers_26","type":"Поставщик","name":"GUANGZHOU YABAO PRINTING CO., LTD","spec":"Ткани","country":"Китай","address":"No.768, Guangcong Ten Road, Zhongluotan Town, \nBaiyun District, Guangzhou, China","contacts":"SAM LIN 0086 137 51 797 181 | samlin@yabao168.com","site":"www.yabao168.com","notes":"Трикот","status":"Активный"},{"id":"suppliers_27","type":"Поставщик","name":"TENGLONG (WENZHOU TENGLONG ELECTRONICS METER.. LTD.), Zhejiang","spec":"Запчасти","country":"Китай","address":"Floor 7, No. 1, Taili Road, Lucheng Ind. Zone, Wenzhou, Zhejiang, China","contacts":"Ms. Jiali TENG Manager | Телефон: 86-0577-88777958 | Мобильный телефон: 13706786795","site":"http://www.tenglong.net.cn","notes":"Датчики измерителя длины","status":"Активный"},{"id":"suppliers_28","type":"Поставщик","name":"GUANGZHOU STENBURG MATTRESS MACHINERY CO., LTD","spec":"Оборудование / Запчасти","country":"Китай","address":"1st Floor,  Building A,  Jinlun Science Park，No.4 Qidong Road，Jingu Industrial Zone, Huadong Town, H","contacts":"Stenburg-Helen |  marketing@xidengbao.cn |  2851155276 | Wechat'ID:  133 8000 1060","site":"https://www.spring-mattress-machine.com/contactus.html","notes":"Швейное, упаковочное, стегальное, пружинное оборудование","status":"Активный"},{"id":"suppliers_29","type":"Поставщик","name":"Yangzhou Qianglin Hydraulic Machinery Co., Ltd. company, right","spec":"Запчасти","country":"Китай","address":"Wujian Industrial Park, Yangzhou, Jiangsu, China","contacts":"","site":"https://ql-hydraulic.en.made-in-china.com/contact-info.html?pv_id=1iuglmb6l0ba&faw_id=1iuglmir5bca","notes":"Запчасти на гидравлические системы станков KITAGAWA","status":"Активный"},{"id":"suppliers_30","type":"Поставщик","name":"NEFIN MAKINE","spec":"Оборудование","country":"Турция","address":"Mimar Sinan OSB. 13. Cad. No: 48 Melikgazi / KAYSERi\nERCİYES VERGİ DAİRESİ / V.No: 630 107 0920","contacts":"Salim DOĞAN | e-mail : info@nefinmakine.com | Phone: +90 352 504 78 80 | Mobil: +90 535 522 84 55","site":"www.nefinmakine.com","notes":"Оборудование по переработке поролона","status":"Активный"},{"id":"suppliers_31","type":"Поставщик","name":"FOSHAN BIDE MACHINERY CO.,LTD","spec":"Оборудование","country":"Китай","address":"Add: No. 1, The 2nd Zhenye East Road, Shatou Industry Park, Nanhai District, Foshan City, China","contacts":"Contact person: Ms. Huang  | TEL：+86 13690738388 | EMAIL:Vanessa@yingjun -tape.com","site":"","notes":"Окантовочное оборудование","status":"Активный"},{"id":"suppliers_32","type":"Поставщик","name":"GetonAgain","spec":"Оборудование","country":"Китай","address":"Tianjin\nR&D Center\nAddress: 4/F,No.8, Tianbao Nan Huan Road, Baodi Economic Development Zone, Baodi,","contacts":"Sales | Address: Tianjin City, Heping District, HeSheng Wealth Plaza Building B, Room 1401 | Phone: +86 15022676886 | Phone: +86 13516199153 | Email: sales@getonagain.com","site":"https://www.getonagain.com/About_Us/contact_us/&id=206","notes":"Швейное, стегальное, раскройное оборудование","status":"Активный"},{"id":"suppliers_33","type":"Поставщик","name":"FOSHAN YUANTIAN MATTRESS MACHINERY CO.,LTD","spec":"Оборудование","country":"Китай","address":"Add: Yuantian Industrial Park, Lishui Town, Nanhai District, Foshan, Guangdong, China","contacts":"Joyce Ye | joyce@yuantian.com | Tel: +86 757 85623503 | Mob: 0086 18823155846","site":"www.yuantian.com","notes":"Окантовочное оборудование","status":"Активный"},{"id":"suppliers_34","type":"Поставщик","name":"ZHEJIANG HUAJIAN INTELLIGENT EQUIPMENT LTD","spec":"Оборудование","country":"Китай","address":"ADD: NO.7 LUCHI ROAD, YUECHENG DISTRICT, EAST OF SHAOXING, ZHEJIANG, CHINA","contacts":"TEL：0086-575-88204668  | FAX：0086-575-88204880 | Email: sales@hj7.cn","site":"Http://www.hj7.cn\nHttp://www.huajianmachine.com\nHttp://www.mattressmachine.net\nhttps://www.huajianmachine.com/contact/","notes":"Пружинное оборудование, упаковочное оборудование\nКОНКУРЕНТЫ LIAN ROU!","status":"Активный"},{"id":"suppliers_35","type":"Поставщик","name":"Sail Nonwoven Machine Co.,Ltd","spec":"Оборудование / Запчасти","country":"Китай","address":"Changsheng Industry Park, Renyang town, Changshu City Jiangsu Province, China","contacts":"Grace Lee | Whatapp:+86 158 2112 5326 | Skype:sail_lk | ㅤ+86 158 2112 5326","site":"https://www.sail-nonwovenmachinery.com/contact_us","notes":"Оборудование, запчасти для оборудование по переработке поролона","status":"Активный"},{"id":"suppliers_36","type":"Поставщик","name":"Dongguan shengsai Machinery Co., Ltd.","spec":"Оборудование / Запчасти","country":"Китай","address":"Adress：2nd floor, building B, Guanghui Zhigu Industrial Park, 196 furniture         Avenue, Houjie T","contacts":"Phone：【+86-186 8007 5371】 | E-mail： info@shengsaimachinery.com","site":"http://en.shengsaimachinery.com/bk_VXX1597459877491.html","notes":"Клеевое оборудование","status":"Активный"},{"id":"suppliers_37","type":"Поставщик","name":"Zibo Boshan Henglian Pump Machinery Co., Ltd.","spec":"Запчасти","country":"Китай","address":"Address: Baita Industrial Park, Boshan District, Zibo City","contacts":"Whats App:  +86 18653381289 | Email: 121050345@qq.com | Email:hongyuyan70@gmail.com","site":"http://www.zb-hlpump.com/col.jsp?id=102","notes":"Редуктора","status":"Активный"},{"id":"suppliers_38","type":"Поставщик","name":"Guangdong Minghui Pneumatic Science & Technology Co.,Ltd.","spec":"Пневматика","country":"Китай","address":"ADD.:Room 501,Building 7,HuaKang BuildingNo.1keji Fifth RoadXingTan Industrial Zone, QiXing Communit","contacts":"Cherry | wechat ID: xueyuyun2012","site":"","notes":"Пневматические пистолеты","status":"Активный"},{"id":"suppliers_39","type":"Поставщик","name":"Taizhou Yuxing Needle Co., Ltd","spec":"Иглы","country":"Китай","address":"818 Haihong Avenue, Haimen Street, Jiaojiang District, Taizhou City, Zhejiang Province","contacts":"0576-88817299（China）/ +86 576 88991777（Overseas） |  | huaji@cnyuxing.cn |  | wechat is 19888862533 - Lulu","site":"https://www.cnyuxing.cn/lxwm","notes":"Иглы пробивные","status":"Активный"},{"id":"suppliers_40","type":"Поставщик","name":"Haida International Equipment Co.,Ltd","spec":"Оборудование","country":"Китай","address":"Building F4, Zone F, Tian'an Cyber Park , Nancheng District, Dongguan City, Guangdong Province, Chin","contacts":"Ms.Summer Gan   |  Senior Lab Consultant - CPP Dept.| |  Haida International Equipment Co.,Ltd |  Wechat/Whatsapp: +86 139 2250 4387 | Email:summer@qc-test.cn |  Tel: +86 769 8916 6601 Ext.8012","site":"www.haidatestequipment.com","notes":"Оборудование и инструменты для тестирования ппу и пружин, матрасов","status":"Активный"},{"id":"suppliers_41","type":"Поставщик","name":"Jiangsu Jianda grinding Technology Co., LTD","spec":"Шлифовальные ремни","country":"Китай","address":"18-2 Tiangang Road, Luoshe Town, Huishan District, Wuxi, Jiangsu, China","contacts":"Phone/WeChat: +86 18852172853 | Email: cx863248674@gmail.com","site":"","notes":"Шлифовальные ремни","status":"Активный"},{"id":"suppliers_42","type":"Поставщик","name":"HUIXING MACHINE CO., LTD. SHISHI","spec":"Иглы","country":"Китай","address":"SHIHU INDUSTRIAL ZONE,HANJIANG TOWN,SHISHI CITY,QUANZHOU CITY,FUJIAN PROVINCE CHINA","contacts":"Fiona | Tel:+8615980825495 | What's APP/We chat: 008615980825495 | Email:fiona@huixingmachine.cn","site":"","notes":"Иглы пробивные","status":"Активный"},{"id":"suppliers_43","type":"Поставщик","name":"SUZHOU EAST-SEA FILTER EQUIPMENT CO., LTD","spec":"Фильтры","country":"Китай","address":"No. 555 East Zhenxin Rd, Zhangpu, Kunshan, Jiangsu, China","contacts":"jingling@eastseafilter.com | +86-512-57457200","site":"https://eastseafilter.com/","notes":"Фильтры для воздушных систем","status":"Активный"},{"id":"suppliers_44","type":"Поставщик","name":"ESUN","spec":"Оборудование / Запчасти","country":"Китай","address":"No. 127, Mujia, ZhuangQiao Village,NingBo, CHINA","contacts":"M: +86 189 5788 9217; +86 138 6785 3996(Wechat/WhatsApp ID) | T: +86 574 8752 2960 | F: +86 574 8752 2961 | +8613362880372  - After-Sales Department   William","site":"https://www.eachsun.com/contact.html","notes":"Швейное, пружинное оборудование, резка ппу","status":"Активный"},{"id":"suppliers_45","type":"Поставщик","name":"Dongguan Yiwanhao Abrasives Co., Ltd.","spec":"Заточные камни","country":"Китай","address":"Room 1702, Commercial Building 2, Vanke Center, 200 Qifeng Road, Xingtang Community, Guancheng Stree","contacts":"Phone: +86 13798799622 | Email: hanh.10000abrasive.com","site":"","notes":"Заточные камни","status":"Активный"},{"id":"suppliers_46","type":"Поставщик","name":"Zhicheng Garment Machinery Co., Ltd.","spec":"Оборудование","country":"Китай","address":"","contacts":"WhatsApp +86 15985983359 |  Email sale@zhichengmach.com | Wechat +86 15985983359 | Tel +86 15985983359 | Alice","site":"https://zhichengmach.com/pages/contact-us-9","notes":"Раскройное оборудование","status":"Активный"},{"id":"suppliers_47","type":"Поставщик","name":"Jinan Maidun CNC Equipment","spec":"Оборудование","country":"Китай","address":"","contacts":"Whtsapp&wechat:+86 15165018235 - Andy | mycsales011@myclaser.com","site":"www.myclaser.com","notes":"Раскройное оборудование","status":"Активный"},{"id":"suppliers_48","type":"Поставщик","name":"GUANGZHOU GUOMAT AUTO PARTS CO., LTD","spec":"Запчасти","country":"Китай","address":"","contacts":"Cindy |  E-mail : cindy@662n.com","site":"","notes":"Пневматические подушки","status":"Активный"},{"id":"suppliers_49","type":"Поставщик","name":"ZHEJIANG LIANKE PRECISION MACHINERY CO.,LTD","spec":"Оборудование / Запчасти","country":"Китай","address":"ADDR:NO.318 YUEDONG NORTH ROAD,YUECHENG\nAREA, SHAOXING, ZHEJIANG, CHINA 312000","contacts":"SARAH CHEN | TEL电话#:0086-575-85681760 |  FAX传真#: 0086-575-84780306","site":"","notes":"Запчасти, оборудование упаковочное","status":"Активный"},{"id":"suppliers_50","type":"Поставщик","name":"Guangzhou KEQIRUI Machinery equipment Co., Ltd","spec":"Оборудование / Запчасти","country":"Китай","address":"No.5,Bicun North Road,Yingbin Avenue,\nHuadu District, Guangzhou City, Guangdong\nProvince, China ,510","contacts":"Emse | 86 13316279963","site":"","notes":"Клеевое оборудование, запчасти к нему","status":"Активный"},{"id":"suppliers_51","type":"Поставщик","name":"ZHEJIANG DAYANG SEWING MACHINE CO.,LTD.","spec":"Оборудование / Запчасти","country":"Китай","address":"Add：18#, Zhongxin South Road, Xiachen Town,Jiaojiang,Zhejiang , China TEL：0086-576-88172144 FAX：0086","contacts":"TEL：0086-576-88172144 FAX：0086-576-88172185","site":"","notes":"Раскройные инструменты, ножи","status":"Активный"},{"id":"suppliers_52","type":"Поставщик","name":"Guangzhou Tenghui Ultrasonic Technology Co., LTD","spec":"Запчасти","country":"Китай","address":"Address: E and F Unit, 1st Floor, Lixiang Industrial Center, No. 2, East Xinji Avenue, Xinji Village","contacts":"Mobile phone：13650901708（Mr. Tu） | Mobile phone：13600458586（Mr. Mo） | Email：rongfutu@163.com","site":"https://en.thsonic.com/contact.html","notes":"Ультразвуковые преобразователи (аналоги от LR)","status":"Активный"},{"id":"suppliers_53","type":"Поставщик","name":"Yueqing Yaosheng Electric Co., Ltd","spec":"Запчасти","country":"Китай","address":"","contacts":"wechat ID: 18334433293","site":"https://aliexpress.ru/store/911707480?spm=a2g2w.detail.0.0.422d39daiQHz6O&page=1","notes":"Датчики, клапана и прочая электроника","status":"Активный"},{"id":"suppliers_54","type":"Поставщик","name":"Jiangsu yingyang nonwoven machinery co.,Ltd","spec":"Запчасти","country":"Китай","address":"Address:\nNO.5 YINGYANG ROAD RENYANG INDUSTRIAL PARK ZHITANG TOWN CHANGSHU JIANGSU CHINA","contacts":"Contact | Tel: 0086-512-52587768 | Fax: 0086-512-52588372 | webmaster@yingyang.cn | yingyang@china-nonwovens.com","site":"https://www.china-nonwovens.com/contact.html","notes":"Иглы пробивные","status":"Активный"},{"id":"suppliers_55","type":"Поставщик","name":"Guangzhou Ladetech Intelligent Machinery Co., Ltd","spec":"Оборудование","country":"Китай","address":"Address:\nPingbu Avenue,Huadu District, Guangzhou City,Guangdong Province,China","contacts":"Phone: | +86 13580565148 | Email: | ladetech@ldtechmattressmachine.com","site":"https://www.ldtechmattressmachine.com/contact.html","notes":"упаковочное оборудование","status":"Активный"},{"id":"carriers_0","type":"Перевозчик","name":"ILS-cargo","spec":"Перевозчик","country":"Россия","address":"141580, Московская обл., Солнечногорский р-н, с.п. Луневское, д. Пикино, ул. Транспортная, уч. 3","contacts":"Дрёмова Аделина Менеджер по ВЭД | 79015402675 | AdelinaDremova.3L@gmail.com","site":"http://www.ils-cargo.ru/","notes":"международные перевозки (только всё под ключ: перевозка + таможенное оформление)","status":"Активный"},{"id":"carriers_1","type":"Перевозчик","name":"KARGO63","spec":"Перевозчик","country":"Россия","address":"Москва","contacts":"Анна 79680116363","site":"https://www.kargo63.com/","notes":"перевозки международные авиапервозка (возможно без документов)","status":"Активный"},{"id":"carriers_2","type":"Перевозчик","name":"Pony Express","spec":"Перевозчик","country":"Россия","address":"","contacts":"88002342240","site":"","notes":"Доставляют из Турции","status":"Активный"},{"id":"carriers_3","type":"Перевозчик","name":"DPD грузоперевозки","spec":"Перевозчик","country":"Россия","address":"","contacts":"88002344595 / 9104404434","site":"","notes":"международная доставка грузов самолетом \nВозможна отправка от частного лица и от организации. Если от физ лица -то с терминала, от организации - курье","status":"Активный"},{"id":"carriers_4","type":"Перевозчик","name":"ФФ КАРГО СЕРВИС (FF Cargo Services LTD)","spec":"Перевозчик","country":"Россия","address":"","contacts":"Daniil Minakov | service@ffcargo.com | Customer service agent | Tel. +7 (495) 648-65-01 ex 176 | Mob  +7 (966) 184-75-90 | M. service@ffcargo.com | M. d.minakov@ffcargo.com","site":"","notes":"Самолетом доставка из Турции","status":"Активный"},{"id":"carriers_5","type":"Перевозчик","name":"СДЭК-ГЛОБАЛ","spec":"Перевозчик","country":"Россия","address":"","contacts":"Татьяна Сурма t.surma@cdek.ru | моб. +7 937 187-94-38 | Менеджер по ВЭД Журкина Наталья Александровна | n.zhurkina@cdek.ru | моб. +7 925 716 4857","site":"","notes":"международные перевозки","status":"Активный"},{"id":"carriers_6","type":"Перевозчик","name":"Ист-Логистик","spec":"Перевозчик","country":"Россия","address":"г. Санкт-Петербург, Новгородский пр. д. 6 лит. А пом. 24-Н\nг. Санкт-Петербург, ул.Цветочная,18 лит. ","contacts":"Евгений Абрамов ae@east-logistic.ru | моб. 8951 689 75 55, 8 (800) 201-06-75 | 8 (812) 378-39-19 (доб.2) | Екатерина Абакшина sales2@east-logistic.ru | 8 (800) 201-06-75 | 8 (812) 378-39-19 |  Елена Н","site":"https://east-logistic.ru","notes":"Доставка грузов из Турции, Индии, Кореи, Китая","status":"Активный"},{"id":"carriers_7","type":"Перевозчик","name":"ВАС ЭКСПРЕСС/VAS EXPRESS","spec":"Перевозчик","country":"Россия","address":"","contacts":"Соловьева Евгения | тел.:    +7 926 760 52 00 | +7 981 800 52 00 | e-mail.: e.soloveva@sorsadom.ru","site":"www.vas-express.ru","notes":"доставка сборных грузов из Китая до Москвы в срок от 14-20 дней. Собственные склады на территории Китая, Дальнего Востока и в Москве.","status":"Активный"},{"id":"carriers_8","type":"Перевозчик","name":"Векс, Новосибирск","spec":"Перевозчик","country":"Россия","address":"","contacts":"NK@lightlogistics.ru | Наталья +7 903 906 32 06","site":"","notes":"грузоперевозки из Китая","status":"Активный"},{"id":"carriers_9","type":"Перевозчик","name":"AZFIN GROUP","spec":"Перевозчик","country":"","address":"","contacts":"Рахман - руководитель | dadanov202@yahoo | +994 77 700 11 77 | Исполнительный директор eldar@azfingroup.com | Ниджат Бакхшалиев менеджер | +994 55 410 80 94 | nijat@azfingroup.com","site":"","notes":"международные перевозки / Авиаперевозка из Турции","status":"Активный"},{"id":"carriers_10","type":"Перевозчик","name":"Гасанов Орхан Вагиф оглы","spec":"Перевозчик","country":"Азербайджан","address":"","contacts":"Орхан - ORKHAN HASANOV | orhan.minsk@mail.ru | +375 25 518 86 83","site":"","notes":"Грузоперевозки из Турции фурами","status":"Активный"},{"id":"carriers_11","type":"Перевозчик","name":"Вавс, Ульяновск","spec":"Перевозчик","country":"Россия","address":"РФ, 432072, г. Ульяновск, 42-й проезд Инженерный, д.14","contacts":"m.habiev@vavsgroup.com | Руководитель отдела перевозок. КНР и Азия Evgeniya Vinohodova e.vinohodova@vavsgroup.com (Китай) | +7 902 244 81 90 | Маргарита Евдокимова m.evdokimova@vavsgroup.com (Турция),","site":"","notes":"международные перевозки","status":"Активный"},{"id":"carriers_12","type":"Перевозчик","name":"Asia Spirit, г. Новосибирск","spec":"Перевозчик","country":"Россия","address":"г.Новосибирск,1-я Ельцовка, 1КР,2п-д,5эт.(Бизнес парк Ельцовка)","contacts":"Alexander Ostapenko | mob: +7(961)2304505 | tel: +7(383)3991592 | e-mail: mop3@asia-spirit.ru","site":"http://asia-spirit.ru","notes":"международные грузоперевозки / комплекс услуг по организации ВЭД","status":"Активный"},{"id":"carriers_13","type":"Перевозчик","name":"REALTA LLC, Ульяновск","spec":"Перевозчик","country":"Россия","address":"432063, г.Ульяновск, ул. Пушкинская, 15А, офис 105,","contacts":"Руководитель Сергей Тарасов | моб. +7 9510 96-60-11 | тел. +7 8422 67-55-99 | эл.почта: realta.top@gmail.com","site":"","notes":"международные грузоперевозки / комплекс услуг по организации ВЭД","status":"Активный"},{"id":"carriers_14","type":"Перевозчик","name":"PL-PROVIDER, г.Нижний Новгород","spec":"Перевозчик","country":"Россия","address":"РФ, 603000, г. Нижний Новгород, ул. Горького, д.43, пом. П22","contacts":"директор Павленкова Елена Павловна | pl@pl-provider.ru | тел. +7 (831) 4351260 | моб. +7 951 904 47 73 | Наталья Рябинина mg@pl-provider.ru | Phone:+7 (831)435-12-60 (ext.202)/8.961 630 0902 | логист ","site":"www.pl-provider.ru","notes":"международные грузоперевозки / доставка из Европы, Китая","status":"Активный"},{"id":"carriers_15","type":"Перевозчик","name":"КитЛогистик","spec":"Перевозчик","country":"Россия","address":"Russia, Moscow, Presnenskaya nab., 12, Moscow City, Federation Tower East, 28 fl.","contacts":"Алексей Лыков | +7 960 379-37-64 | Aal@kitlogistic.ru | Ilya Niskovskikh | Илья ilia.n ilia.n@kitlogistic.ru | Tel: +7 913 080 72 14 | E-mail: ilia.n@kitlogistic.ru","site":"http://www.kitlogistic.ru","notes":"международные перевозки","status":"Активный"},{"id":"carriers_16","type":"Перевозчик","name":"LASER (Карго), Турция","spec":"Перевозчик","country":"Турция","address":"","contacts":"Parvin Bey +7 926 072-08-88 | Москва Маис Садовод +7 991 261-71-12 | Стамбул +7 991 261-71-12 | Шамхал (Shamhal ) +90 531 621 73 43","site":"","notes":"доставка карго до Садовода (Москва). Отправляют транспортной компанией\nнужно уточнять код товара у Шамхала (перед отправкой от поставщика). Этот код п","status":"Активный"},{"id":"carriers_17","type":"Перевозчик","name":"Hegelmann Group (Hegelmann Multimodal Lojistic A.S.), Турция","spec":"Перевозчик","country":"Турция","address":"Küçükbakkalköy Mah. Elvan Sk. Pacifik Plaza Blok No:8 İç Kapı No:5 Ataşehir/İSTANBUL, Turkey","contacts":"Can Senocak | Business Development Manager | Turkey Strategic Sales Department | csenocak@hegelmann.com | 905418285345 | Int.: 990102 | 37037787913","site":"www.hegelmann.com","notes":"международные перевозки","status":"Активный"},{"id":"carriers_18","type":"Перевозчик","name":"ВЭД СЕРВИС, г.Новороссийск","spec":"Перевозчик","country":"Россия","address":"","contacts":"Павел | ved-service01@mail.ru","site":"","notes":"Доставка до таможни Новороссийск и по РФ","status":"Активный"},{"id":"carriers_19","type":"Перевозчик","name":"STALOGISTIC","spec":"Перевозчик","country":"Россия","address":"","contacts":"Полина | P.kuznetsova@stalogistic.com | Дарья 89219786690 ЛИЧНЫЙ | 892624955637 (доб.4069)","site":"","notes":"","status":"Активный"},{"id":"carriers_20","type":"Перевозчик","name":"Саша (карго из Китая), Китай","spec":"Перевозчик","country":"Китай","address":"","contacts":"Саша +8613026769662 | email: 218@ym-trans.com","site":"","notes":"карго из Китая до Южных Ворот","status":"Активный"},{"id":"carriers_21","type":"Перевозчик","name":"ГрузОптЛогистик, Брест, Белоруссия","spec":"Перевозчик","country":"Беларусь","address":"","contacts":"Екатерина моб. +375 29 169-23-43 |  k.andreikavets@gruzoptlogistik.by","site":"","notes":"Доставка из Республики Беларусь","status":"Активный"},{"id":"carriers_22","type":"Перевозчик","name":"EMS Express, г.Ульяновск","spec":"Перевозчик","country":"Россия","address":"Почтовое отделение ул. Гончарова, д. 9 432000","contacts":"Альфия Санникова | Alfiya.Sannikova@russianpost.ru | 89378752427 | 42-23-89 Наталья Ивановна | Елена Кесова Elena.Kesova@russianpost.ru | Ведущий специалист","site":"","notes":"Международные перевозки , доставка из Китая","status":"Активный"},{"id":"carriers_23","type":"Перевозчик","name":"Лайт Логистик","spec":"Перевозчик","country":"Россия","address":"","contacts":"Иван Суслов | +7 983 303-23-08","site":"","notes":"","status":"Активный"},{"id":"carriers_24","type":"Перевозчик","name":"\"100 EХPRESS\" LLC, Москва","spec":"Перевозчик","country":"Россия","address":"","contacts":"Генеральный директор - Краснов Cергей, мобильный: +7(499)130-89-89 / +7(964)791-45-66; WeChat/Telegram: | serg_stoexpress, почта: sk@100express.ru | Менеджер - Ирина, мобильный: +7 967 200-42-59","site":"","notes":"Международные перевозки + посреднические услуги (через компанию в Китае)","status":"Активный"},{"id":"carriers_25","type":"Перевозчик","name":"МЕЖТРАНСАВТО","spec":"Перевозчик","country":"Россия","address":"","contacts":"Пискайкин Андрей <piskaikin@mtagroup.ru> | тел: +7(495) 461 01 11 (151) | моб: +7(916) 5995622","site":"","notes":"международные перевозки","status":"Активный"},{"id":"carriers_26","type":"Перевозчик","name":"Кредо Групп","spec":"Перевозчик","country":"Россия","address":"Санкт-Петербург","contacts":"sales@kredo-in.ru | тел. (812) 319-55-59, доб. 253, 254, 255. | Алексей Михайлович Сорокин, почта: asor@kredo-in.ru; Игорь Бутков, почта: i.butkov@kredo-in.ru","site":"https://kredo-in.ru/","notes":"Международные перевозки + посреднические услуги (через компанию в Киргизии)","status":"Активный"},{"id":"carriers_27","type":"Перевозчик","name":"Shuttle-logistic","spec":"Перевозчик","country":"Россия","address":"117105, г. Москва, Новоданиловская Набережная, 4а, офис 11/1/6, БЦ Новоданиловский Дом","contacts":"Никитенко Екатерина | enu@shuttle-logistic.ru  | Моб.: +7 (902) 923-20-92 | +7 (495) 649-66-09 доб. 153","site":"www.shuttle-logistic.ru","notes":"","status":"Активный"},{"id":"carriers_28","type":"Перевозчик","name":"Еналиев Рушан Камильевич","spec":"Перевозчик","country":"Россия","address":"","contacts":"телефон: +7 937 419 99 93","site":"","notes":"международные перевозки из Китая (КАРГО)","status":"Активный"},{"id":"carriers_29","type":"Перевозчик","name":"РБизнесТранс (РБТ)","spec":"Перевозчик","country":"Россия","address":"","contacts":"контакты +7 (812) 401-44-44 Кульбицкий Алексей доб.119  ak@brokertrans.ru | +79818217934 Юлия vus@brokertrans.ru","site":"","notes":"международные перевозки","status":"Активный"},{"id":"carriers_30","type":"Перевозчик","name":"БВ Логистик","spec":"Перевозчик","country":"Россия","address":"125009, г. Москва, Нижний Кисловский переулок, д. 7, стр. 1.","contacts":"Телефон гл. офиса: +7(495) 727-13-20 | E-mail: sea@akatrans.com / Отдел продаж: sales@akatrans.com","site":"","notes":"международные перевозки","status":"Активный"},{"id":"carriers_31","type":"Перевозчик","name":"ТРАСКО","spec":"Перевозчик","country":"Россия","address":"143420, Московская обл., г.о. Красногорск, пос. Архангельское, тер. Музей техники, стр.8\nфилиал г.Пе","contacts":"Илья Захаров, +79519341023, IZakharov@trasko.ru | Матвей Ветелин MVetelin@trasko.ru | сот. телефон: 8-912-49-01-528","site":"https://trasko.ru/","notes":"","status":"Активный"},{"id":"carriers_32","type":"Перевозчик","name":"Совтранставто Логистика Рус","spec":"Перевозчик","country":"Россия","address":"г. Москва, Летниковская ул., 10с4, Москва (этаж 2)","contacts":"Севостьянов Роман | +7-914-665-31-90","site":"https://www.sovtransavto.ru/","notes":"международные перевозки","status":"Активный"},{"id":"carriers_33","type":"Перевозчик","name":"APS (“Autopromsnab-spedition” LLC)","spec":"Перевозчик","country":"Беларусь","address":"Lugovoslobodskoy village council 55, 223062 Obchak, Minsk region, Belarus","contacts":"Sokolovskaya_Darya Sokolovskaya.Darya@aps-solver.com | +375 (17) 500 56 59 ext. 459 | +375 (44) 735 05 17","site":"www.aps-solver.com","notes":"международные перевозки , фурами,жд возят из Китая, Турции от 300 кг","status":"Активный"},{"id":"carriers_34","type":"Перевозчик","name":"Бишбилен","spec":"Перевозчик","country":"Турция","address":"","contacts":"Яна | yanki@basbilen.com.tr","site":"","notes":"международные перевозки, доставка фурами из Турции","status":"Активный"},{"id":"carriers_35","type":"Перевозчик","name":"Highway Logistic Group","spec":"Перевозчик","country":"Россия","address":"","contacts":"Александр Сергеевич | Моб.: +7-916-020-88-67 | Эл. Почта: a.kondratiev@‌hl-group.ru","site":"www.hl-group.ru","notes":"международные перевозки , Доставка+растаможка в Уссурийске, доставка из Китая фурами, авиа","status":"Активный"},{"id":"carriers_36","type":"Перевозчик","name":"Нептун Логистикс Рус","spec":"Перевозчик","country":"Россия","address":"г.Москва, Ленинская Слобода 19, 3 этаж, офис 3060, БЦ Омега Плаза","contacts":"Дмитрий Иджаев d.idzhaev@nep-logistics.ru | Tel/whats up: +7 9263988689 | +7 495 901 16 27 | Костюк Алексей менеджер по продажам | +7 968 477 87 98 | a.kostuk@nep-logistics.ru | Алексей ЛИ (руководите","site":"www.nep-logistics.net","notes":"международные перевозки, Логистика из Китая и в Китай","status":"Активный"},{"id":"carriers_37","type":"Перевозчик","name":"SBS LOGISTIC","spec":"Перевозчик","country":"Узбекистан","address":"100084 Ташкент, Юнусабадский район, проспект Амира Темура, 107-Б, офис 5С-03","contacts":"Валерий Смирнов | зам ген директора по безопасности и развитию | +7 916 374 97 83 | +998 90 047 40 58 | valery.smirnov@sbslogistics.com","site":"www.sbslogistics.com","notes":"международные перевозки","status":"Активный"},{"id":"carriers_38","type":"Перевозчик","name":"Систем","spec":"Перевозчик","country":"Россия","address":"склады: г.Москва, г. Стамбул, г.Бурса, г.Вильнюс (Литва)","contacts":"Артем Соловьев | 146@lg1.org | +44 7479 826-648 watsapp | +7 495 640 9701 (доб. 146)","site":"system-logistic.ru","notes":"международные перевозки","status":"Активный"},{"id":"carriers_39","type":"Перевозчик","name":"ИСТ Глобал Лоджистик","spec":"Перевозчик","country":"Россия","address":"","contacts":"Кваша Виталий | Tel/Fax: + 7 (495) 232-28-21, доб. 189 | Mob.: + 7 (977) 808 08 77 | Skype: kvashavitaliy | mail: sales9@eastlogistics.net","site":"www.eastlogistics.ru","notes":"","status":"Активный"},{"id":"carriers_40","type":"Перевозчик","name":"Трансимпериал","spec":"Перевозчик","country":"Россия","address":"","contacts":"Сивицкая Дарья  | моб: +7 916 430-30-67, +7 916 430-31-49  | тел:  +7 495 789-92-25 доб. 1160 | mobile (viber / whatsapp) : +375 29 618 57 65  |  e-mail: d.sivickaya@transimperial.ru","site":"www.transimperial.ru","notes":"международные перевозки","status":"Активный"},{"id":"carriers_41","type":"Перевозчик","name":"ТрансКонтейнер, филиал Ульяновск (ГК \"ДЕЛО\")","spec":"Перевозчик","country":"Россия","address":"","contacts":"Начальник агентства на станции Ульяновск 3 | Вячеслав Андреевич Андреев      andreevva@trcont.ru | Светлана Пулашкина +7 8422 29-00-93 | тел.: +7 (495) 788–17–17 (доб. 4981) | PulashkinaSN@trcont.ru  ","site":"","notes":"международные контейнерные перевозки\nморе+жд+авто\nжд+авто\n(поезд из Китая до Тольятти едет 2 раза в неделю, контейнерный поезд)","status":"Активный"},{"id":"carriers_42","type":"Перевозчик","name":"Денис (КАРГО) cargo_1982","spec":"Перевозчик","country":"Китай","address":"","contacts":"wechat ID: cargo_1982 | whatsap: +86 130 5161 5533","site":"","notes":"Карго поставки из Китая: авиа, авто","status":"Активный"},{"id":"carriers_43","type":"Перевозчик","name":"ДелЭкспресс (Транспортная группа)","spec":"Перевозчик","country":"Россия","address":"105318 г. Москва,\nул. Щербаковская д.3, кабинет 712,  7 этаж","contacts":"Евгений Жеглов | Ведущий Специалист +74954016601 (доб. 371) | +79100004356 |  jef@delexpress.ru","site":"https://delexpress.ru","notes":"международные перевозки","status":"Активный"},{"id":"carriers_44","type":"Перевозчик","name":"INTER LOGISTIC LIMITED,","spec":"Перевозчик","country":"Россия","address":"115533, Russia, Moscow, Nagatinskiy BC, office 0819","contacts":"Zhadan Maksim | Sales Manager +7 (989) 210-05-33 | live:.cid.3691e7ad411fc709 | zhadan@inter-logis.ru","site":"","notes":"международные перевозки","status":"Активный"},{"id":"carriers_45","type":"Перевозчик","name":"TELS CARGO","spec":"Перевозчик","country":"Россия","address":"","contacts":"Никита Черницкий | Специалист клиентского отдела | Т:  + 7 4812 268 328 / 3804 | E: Chernitskiy@telscargo.com","site":"www.telscargo.com","notes":"Cпециализируемся на автомобильных грузоперевозках, доставляем грузы из Турции в Россию и страны СНГ","status":"Активный"},{"id":"carriers_46","type":"Перевозчик","name":"SHENZHEN BILIAN INTERNATIONAL FREIGHT FORWARDING CO","spec":"Перевозчик","country":"Китай","address":"","contacts":"SHENZHEN BILLIAN Олеся | +7 911 699-89-40","site":"","notes":"Авиа, сборка из Китая + карго","status":"Активный"},{"id":"carriers_47","type":"Перевозчик","name":"Streloy","spec":"Перевозчик","country":"Россия","address":"","contacts":"Кириленко Варвара | Менеджер отдела продаж | моб.тел.: +7 995 657 24 93 | тел.: +7 812 670 50 50 доб. 121 | E-mail: v.kirilenko@streloy.ru","site":"Сайт: http://www.streloy.ru","notes":"Авиа, сборки из Китая","status":"Активный"},{"id":"carriers_48","type":"Перевозчик","name":"ООО \"ТрансТимЛоджистик\"","spec":"Перевозчик","country":"Россия","address":"","contacts":"Анна Калараш | Руководитель отдела продаж | p: 8 800 550 42 54   | m: +7 912 696 80 91             | e: kalarash@ttl-llc.ru","site":"w: ttl-llc.ru","notes":"","status":"Активный"},{"id":"carriers_49","type":"Перевозчик","name":"Транзит Групп","spec":"Перевозчик","country":"Россия","address":"","contacts":"Менеджер: Галина Нестеренко | Тел. для звонков +7 977 090-00-13 | Тел. для WhatsApp/Telegram +7 908 818-61-07 | Почта  nesterenko@transitgroup.ru |  | 8(800)101-08-16","site":"https://https://transitgroup.ru","notes":"","status":"Активный"},{"id":"carriers_50","type":"Перевозчик","name":"REEXPORTER (бывш. REQ TRANS)","spec":"Перевозчик","country":"Грузия","address":"TAX CODE: 446 759 570\nАдрес: KEDA DISTRICT, VILLAGE DANDALO\n4TH, STR. N7, Batumi, Republic of Georgi","contacts":"Irakli Adrenadze | Тел.: +995 571 45 46 45 | reexporterltd@gmail.com","site":"","notes":"","status":"Активный"},{"id":"carriers_51","type":"Перевозчик","name":"Давид Костюк","spec":"Перевозчик","country":"Россия","address":"","contacts":"Давид Костюк | +7 964 777-88-51","site":"","notes":"Международные перевозки из Китая и других стран","status":"Активный"},{"id":"carriers_52","type":"Перевозчик","name":"Beijing Bangsheng International Trade Co., Ltd","spec":"Перевозчик","country":"Китай","address":"","contacts":"wechat ID: cargo_1982 | whatsap: +86 130 5161 5533","site":"","notes":"Сборка, контейнерная перевозка из Китая","status":"Активный"},{"id":"carriers_53","type":"Перевозчик","name":"Prime way","spec":"Перевозчик","country":"Россия","address":"","contacts":"Анна | +7 918 921-55-04","site":"","notes":"","status":"Активный"},{"id":"carriers_54","type":"Перевозчик","name":"Международная компания Time Logistics","spec":"Экспедитор","country":"Китай","address":"Филиал в Пекине:\nАдрес:Пекин регион Тун Чжоу научно--технический парк \"Чжун Гуань чунь\" Тон Чжоу юан","contacts":"Контактный Телефон:ВераЧжао+8613810071214(Wechat) | Email:timelogistics@163.com","site":"Сайт:rus.timelogistics-world.com","notes":"","status":"Активный"},{"id":"carriers_55","type":"Перевозчик","name":"ООО «Нексол»","spec":"Перевозчик","country":"Россия","address":"127083, г. Москва, ул. 8 марта, д.1стр12, помещение XVI, комната 5, комната №1","contacts":"Падерин Владимир Владимирович. | Email: log@nexol.ru | Tел/What’s app/ Telegram: 8-919-770-33-43 | Skype: Roshal71","site":"","notes":"","status":"Активный"},{"id":"carriers_56","type":"Перевозчик","name":"ООО ТСВ","spec":"Экспедитор","country":"Россия","address":"","contacts":"Контактное лицо: Александров Тимофей | Тел: +7 (495)984-91-85 доб. 455 | Сот. 8(931)390-49-57","site":"Сайт: https://tsvsst.com","notes":"Услуги уп.эк оператора в том числе","status":"Активный"},{"id":"carriers_57","type":"Перевозчик","name":"Jade (Hong Kong) Supply Chain Management Limited","spec":"Экспедитор","country":"Китай","address":"","contacts":"","site":"","notes":"Авиа, сборка из Китая + карго","status":"Активный"},{"id":"carriers_58","type":"Перевозчик","name":"ООО «Центр логистических услуг»","spec":"Перевозчик","country":"Россия","address":"353900, г Новороссийск, Энгельса, дом 7, кор.Пом. 2, оф. 420\nCenter logistics services» LLC\nKrasnoda","contacts":"Сергей Шубный / Mr. Sergei Shubnyi |  | офис +7(8617) 308 511 доб.(121) | моб.: +7 (952) 855 46 71, | офис +7 (929) 840 30 11 | mail: s.shubnyi@serlog.ru","site":"https://serlog.ru/","notes":"","status":"Активный"},{"id":"svh_0","type":"СВХ","name":"Автологистика, МО, Солнечногорский р-н, с.п. Луневское, д. Пикино","spec":"СВХ","country":"Россия","address":"адрес для корреспонденции: \nД. Пикино, ул. Транспортная, уч.1, стр.1","contacts":"тел. +7 (495) 730-44-87, доб. 4322 Захаров Александр | alexander.zaharov@autologistics.ru | Козлова Марина Владимировна тел. 8(495) 730-44-87 доб.4341 | marina.kozlova@autologistics.ru | Служба таможе","site":"www.autologistics.ru","notes":"СВХ, таможенный пост\nЛенинградский т/п\nPOST CODE 10013110","status":"Активный"},{"id":"svh_1","type":"СВХ","name":"Орскснабтехсервис, г.Орск","spec":"СВХ","country":"Россия","address":"","contacts":"Александр Цибарт | тел:+79228503895 | svh-octc@mail.ru","site":"","notes":"Орский ТП\nСВХ, таможенный пост","status":"Активный"},{"id":"svh_2","type":"СВХ","name":"ТТерминал, МО, Солнечногорский р-н, д. Черная Грязь","spec":"СВХ","country":"Россия","address":"141580, Московская обл., г.о. Солнечногорск, тер. \"Многофункциональный Логистический Парк\", стр. 1","contacts":"Максим | m.sdobnov@tterminal.ru | +7 (499) 702-53-77","site":"http://tterminal.ru/","notes":"СВХ, таможенный пост\nСходненский т/п\nкод 10013190","status":"Активный"},{"id":"svh_3","type":"СВХ","name":"Истра-Терминал, Истринский р-н, п. Первомайский","spec":"СВХ","country":"Россия","address":"143550, Московская обл., г. Истра, п. Первомайский, стр.35","contacts":"Андрей Петрович +7 (495) 225-31-14 | broker@istra-terminal.ru | Ген директор Андрей Александрович +7 (495) 225-31-11 доб. 201 | Заместитель генерального директора | Крыликов Андрей Олегович iterminal@","site":"http://istra-terminal.ru/","notes":"СВХ, таможенный пост\nИстринский т/п\nкод т/п 10013050","status":"Активный"},{"id":"svh_4","type":"СВХ","name":"Шереметьево-Карго (JSC \"Sheremetyevo-cargo\"), МО, г.Химки","spec":"СВХ","country":"Россия","address":"","contacts":"office@shercargo.ru | +7 (495) 961 38 08 | Руководитель отдела по работе с клиентами Максим | +7 (495) 258 66 52 | \"Протасов Максим Владимирович\" protasov.mv@shercargo.ru | Якунина Вера Вячеславовна y","site":"https://www.shercargo.ru/","notes":"СВХ, таможенный пост\nкод SVO2\n\nВозможен забор груза Деловыми линиями до Ульяновска или перевозка внутренними авиалиниями до Ульяновска","status":"Активный"},{"id":"svh_5","type":"СВХ","name":"КРОКУС ИНТЕРСЕРВИС, МО, г.Одинцово","spec":"СВХ","country":"Россия","address":"143002, Московская обл., Одинцовский р-н, с. Акулово, ул. Новая, д. 137","contacts":"Бойко Станислав Александрович csd@crocusterminal.ru | e-mail: boyko@crocusterminal.ru | Елена Олеговна Гречушникова secretary@crocusterminal.ru | тел. +7 (495) 593-43-33 | тел для связи в выходные и п","site":"","notes":"СВХ, таможенный пост\nАкуловский Таможенный пост\nКод таможенного органа: 10013010","status":"Активный"},{"id":"svh_6","type":"СВХ","name":"Вавс, Ульяновск","spec":"СВХ","country":"Россия","address":"г.Ульяновск, 42-й проезд Инженерный, стр.14.","contacts":"СВХ tlt@vavs-org.ru | 40-70-10 | тел: 8(8422)33-50-23 склад | нач склада Сергей 8 965 639 84 50 | Ольга Альмухаметова Офис-менеджер моб. +7-927-988-72-66 | o.lapaeva@vavsgroup.com | Таможня Сергей Ник","site":"www.vavs-org.ru\nhttps://vavsgroup.com","notes":"СВХ, таможенный пост\nТаможенный пост Ульяновский\nКод таможенного поста - 10412200","status":"Активный"},{"id":"svh_7","type":"СВХ","name":"Мультимодальные Транспортные Системы, Михневский ТП, МО, Ступинский район, г.п. Михнево, пос. Михнево","spec":"СВХ","country":"Россия","address":"RUSSIA, 142842, Moscow region, \nStupino O., Mikhnevo RP, Staromikhnevskayastr., plot 47, \npossession","contacts":"ooo_mts@mt-systems.ru | Зам. генерального директора Касаткина Светлана Юрьевна s.kasatkina@mt-systems.ru | т.м.: +7 (915) 360-28-86 | т.р.: 8(495)644-31-05 доб. 150 | сопровождение грузов | Языков Сер","site":"http://www.msvh.ru/","notes":"СВХ, таможенный пост\nMOSCOW CUSTOMS, CUSTOMS POINT\n«MIKHNEVSKIY», CODE 10013230\nSVH OOO «MultimodalnieTransportnieSystem»","status":"Активный"},{"id":"svh_8","type":"СВХ","name":"СВТ-Сервис, Воронеж","spec":"СВХ","country":"Россия","address":"394028, г. Воронеж, ул. Димитрова 148А","contacts":"Начальник отдела СВХ: | Золотых Татьяна Юрьевна | Тел.: +7 (473) 221-98-66; email: svt@esvtr.ru","site":"https://esvtr.ru/contacts.html","notes":"СВХ, (10104030 Таможенный пост Левобережный)","status":"Активный"},{"id":"svh_9","type":"СВХ","name":"СВХ ООО \"Москва Карго\"","spec":"СВХ","country":"Россия","address":"адрес СВХ: 141432, Московская область, г. Химки, Шереметьевское шоссе, владение 28\nПочтовый адрес: 1","contacts":"тел: +7 (495) 737-60-60 - CALL CENTER | info@moscow-cargo.com | info-feedback@moscow-cargo.com | Координация выдачи груза: +7 (495) 737-6060 доб. 41-60 | По вопросам доверенности  +7 (495) 737-6060 до","site":"https://www.moscow-cargo.com/kontakty","notes":"СВХ, таможенный пост\nкод SVO1","status":"Активный"},{"id":"svh_10","type":"СВХ","name":"СВХ, ЗАО Аверс, Ковров","spec":"СВХ","country":"Россия","address":"Юридический адрес: 601900, Владимирская обл., г. Ковров, ул.Труда, 4 Фактический адрес: 601958, Влад","contacts":"телефон | +7-919-026-57-38 (Екатерина) - личный номер | +7 (49232) 6‒78‒21 - общий | Электронный адрес: avers-kovrov@mail.ru Тел (49232)6-78-21, 6-78-23","site":"","notes":"","status":"Активный"},{"id":"svh_11","type":"СВХ","name":"СВХ, YM Trans Group","spec":"СВХ","country":"Россия","address":"","contacts":"Олег Федин   | Старший менеджер по документальному сопровождению  | Mobile: +7 (916) 080‑20‑77  | Валерия : 895@ym-trans.com +7 915 472‑80‑12  | Николай: 721@ym-trans.com","site":"","notes":"СВХ, Селятино\nДля грузов сборкой","status":"Активный"},{"id":"svh_12","type":"СВХ","name":"СВХ, ООО \"ОМАС\"","spec":"СВХ","country":"Россия","address":"644117, г.Омск, ул.3-я Молодежная, д.6, к.2","contacts":"Колодинская Светлана Николаевна | Заместитель генерального директора | тел.: (3812) 40-46-30, 8-913-979-33-21 | Телефон: +7 (381) 240-46-30 | E-mail: omas2003@mail.ru | По информации о прибытии и выда","site":"","notes":"10610050 - т/п Омский","status":"Активный"},{"id":"brokers_0","type":"Тамож. брокер","name":"Эксперт 2К, г.Ульяновск","spec":"Таможенное оформление","country":"Россия","address":"Ул. Азовская, 64 (19 мкрн), химчистка Фрекен Бокс, 2этаж,5 каб.","contacts":"Татьяна +7 927 819-45-88 | rtp-broker@mail.ru | Тел: (8422) 40-01-14 | Факс: (8422) 48-93-35","site":"","notes":"таможенное оформление\nтам. Брокер","status":"Активный"},{"id":"brokers_1","type":"Тамож. брокер","name":"Ариадна","spec":"Таможенное оформление","country":"Россия","address":"","contacts":"89603724201 Юрий Виноградов | ariadna.uly@gmail.com","site":"","notes":"Пакеты ДТ для ВЭД-Декларант","status":"Активный"},{"id":"brokers_2","type":"Тамож. брокер","name":"Брокер Татьяна Уткина, г.Ульяновск","spec":"Таможенное оформление","country":"Россия","address":"","contacts":"Татьяна Уткина siniz.t73@mail.ru | +7 927 819-45-88","site":"","notes":"таможенные услуги, брокер","status":"Активный"},{"id":"agents_0","type":"Агент/Услуги","name":"Даданов Адыль Наилевич","spec":"Консалтинговые услуги","country":"Россия","address":"","contacts":"Даданов Адыль Наилевич (Adil Dadanoff ) | +994 55 775 96 93 | adil.dadanoff@gmail.com","site":"","notes":"","status":"Активный"},{"id":"agents_1","type":"Агент/Услуги","name":"Techpoint","spec":"Услуги выкупа и привоза","country":"Киргизия","address":"г. Бишкек, ул. Джаманбаева 16 (пер. Айтматова)","contacts":"Телефон: 996509000150","site":"https://techpoint.kg/home/oborudovanie-iz-kitaya.html","notes":"Оказывает специализированные услуги по поиску, выкупу и доставке промышленных станков и производственного оборудования из Китая в Кыргызстан","status":"Активный"},{"id":"agents_2","type":"Агент/Услуги","name":"Инфинити Групп Рус, Москва","spec":"Услуги ВЭД","country":"Россия","address":"г.Москва, ул.Верхие поля, д.45, к 4, пом 5/1","contacts":"mlog@infinityinc.ru | Операционный директор | Грыцив Елена | +7 910 489-99-18 | +7 495 021 00 07, moscow@infinityinc.net","site":"http://infinityinc.net","notes":"Логистические и аутсорсинговые услуги в Китае и ЮВА в рамках одного договора","status":"Активный"},{"id":"agents_3","type":"Агент/Услуги","name":"Вектор-Азия, Новосибирск","spec":"Услуги ВЭД","country":"Россия","address":"","contacts":"","site":"Руслан \n89231849293 (также WA,)\ne-mail:  sd25@vektor-a.com","notes":"комплекс услуг по ВЭД\nфин посредник\nаутсорсинг ВЭД","status":"Активный"},{"id":"agents_4","type":"Агент/Услуги","name":"FOSHAN DA LYU IMPORT AND EXPORT CO., LIMITED","spec":"Посредник","country":"Китай","address":"NO.2124,2125,2126,BUILDING 3,MIDEA WONDERFUL SQUARE,NO.9 NANXIA NEW ROAD,NANJIANG COMMUNITY,DALIANG ","contacts":"Mr. Lu Guiping | Wechat ID: LGX20130825 | 492620350@qq.com","site":"","notes":"Помогает с оплатами в Китае фабрикам\nРаботаем с NAIGU, LIAN ROU, JEAKAR через него\nкомиссия 2% на сделку с NAIGU\nкомиссия 0% на сделку с LIAN ROU","status":"Активный"},{"id":"agents_5","type":"Агент/Услуги","name":"REEXPORTER (бывш. REQ TRANS)","spec":"Посредник","country":"Грузия","address":"TAX CODE: 446 759 570\nАдрес: KEDA DISTRICT, VILLAGE DANDALO\n4TH, STR. N7, Batumi, Republic of Georgi","contacts":"Irakli Adrenadze | Тел.: +995 571 45 46 45 | reexporterltd@gmail.com","site":"","notes":"Работает с Турками, комиссия 1%\nЖесткая привязка к услугам доставки\nВыступает как технический экспортер","status":"Активный"},{"id":"agents_6","type":"Агент/Услуги","name":"JINHUA GREAT RISE INDUSTRY AND COMMERCE LTD (100 Express)","spec":"Посредник","country":"Китай","address":"Legal address: No. 92, Xixi Road, Linjiang Industry\nArea, Wucheng New Industry of Jinhua, Zhejiang\np","contacts":"Генеральный директор - Краснов Cергей, мобильный: +7(499)130-89-89 / +7(964)791-45-66; WeChat/Telegram: | serg_stoexpress, почта: sk@100express.ru | Менеджер - Ирина, мобильный: +7 967 200-42-59","site":"","notes":"Комиссия зависит от суммы инвойса\nНДС 13% будет платить плюсом, обязательно предоставление фапьяо (счет-фактура), если поставщик не дает, то агент сам","status":"Активный"},{"id":"agents_7","type":"Агент/Услуги","name":"ООО «ТКМ Парт» (КРЕДО ГРУПП)","spec":"Посредник","country":"Киргизия","address":"","contacts":"sales@kredo-in.ru | тел. (812) 319-55-59, доб. 253, 254, 255. | Алексей Михайлович Сорокин, почта: asor@kredo-in.ru; Игорь Бутков, почта: i.butkov@kredo-in.ru","site":"","notes":"5%, не менее 1500 USD\nКомиссия агента берется с суммы инвойса","status":"Активный"},{"id":"agents_8","type":"Агент/Услуги","name":"ОсОО Мультитрэйдинг","spec":"Посредник","country":"Киргизия","address":"","contacts":"","site":"","notes":"10%, но не менее 700 EUR\nКомиссия агента берется с суммы инвойса\nКомиссия может меняться, начиная с 4% до 30%. Всё зависит от конкретной поставки и ра","status":"Активный"},{"id":"agents_9","type":"Агент/Услуги","name":"KOZMOS TEKSTİL VE GERİ DÖNÜŞÜM SAN.TİC","spec":"Посредник","country":"Турция","address":"Address: Yenibosna Merkez mah.Prof.Dr.Nevzat Pisak cad.№5 kat:3 Yenibosna Bahcelievler / IS-TANBUL","contacts":"KOZMOS Sasha Shtukmayster | +7 915 336-21-85","site":"","notes":"1% от стоимости инвойса\nВыступает как технический экспортер","status":"Активный"},{"id":"agents_10","type":"Агент/Услуги","name":"SHENZHEN BILIAN INTERNATIONAL FREIGHT FORWARDING CO","spec":"Посредник","country":"Китай","address":"","contacts":"SHENZHEN BILLIAN Олеся | +7 911 699-89-40","site":"","notes":"Комиссия зависит от суммы инвойса, берут в работу не менее от 350.000 CNY\nВыступает как технический экспортер","status":"Активный"},{"id":"agents_11","type":"Агент/Услуги","name":"Beijing Bangsheng International Trade Co., Ltd","spec":"Посредник","country":"Китай","address":"","contacts":"wechat ID: cargo_1982 | whatsap: +86 130 5161 5533","site":"","notes":"Комиссия зависит от суммы инвойса\nВыступает как технический экспортер\nЖесткая привязка к услугам доставки","status":"Активный"},{"id":"agents_12","type":"Агент/Услуги","name":"AUREX GOLD TRADING-FZCO","spec":"Платежный агент","country":"ОАЭ","address":"","contacts":"SHENZHEN BILLIAN Олеся | +7 911 699-89-40","site":"","notes":"Платежный агент, гонят из Турции в Грузию деньги, комиссия 4%","status":"Активный"},{"id":"agents_13","type":"Агент/Услуги","name":"Jade (Hong Kong) Supply Chain Management Limited","spec":"Посредник","country":"Китай","address":"Address: Flat 15, 9F, BLK A ,Pak Tin Par Street 5-21, Tsuen Wan, N.T. Hong Kong, China","contacts":"Tel: +86-18676636080 / +7 9055008322 | e-mail: tammy@jd-union.ru,victor.wong@jd-union.ru","site":"","notes":"2% от стоимости инвойса\nВыступает как технический экспортер. Он же экспедитор по доставке","status":"Активный"},{"id":"agents_14","type":"Агент/Услуги","name":"WALLSTREET COMMERCIAL BROKERS L.L.C","spec":"Платежный агент","country":"ОАЭ","address":"","contacts":"SHENZHEN BILLIAN Олеся | +7 911 699-89-40","site":"","notes":"3.8% была сумма по сделке ч/з них по инвойсу REEXPORT","status":"Активный"},{"id":"agents_15","type":"Агент/Услуги","name":"GUMUS INTERNATIONAL TRADING LOGISTIC LIMITED SIRKETI, Стамбул","spec":"Платежный агент","country":"Турция","address":"","contacts":"SHENZHEN BILLIAN Олеся | +7 911 699-89-40","site":"","notes":"3.8% была сумма по сделке ч/з них по инвойсу REEXPORT","status":"Активный"},{"id":"agents_16","type":"Агент/Услуги","name":"UEXPO LOJISTIK SANAYI TICARET LIMITED SIRKETI","spec":"Платежный агент","country":"Турция","address":"","contacts":"тг - Davidsson31 | Andrew Davidus","site":"","notes":"Контакты от Мусина Н.К., 2% от суммы инвойса + свифт","status":"Активный"},{"id":"agents_17","type":"Агент/Услуги","name":"???","spec":"Посредник","country":"Грузия","address":"","contacts":"Samir Gasanov - Georgia | +995 571 40 50 65","site":"","notes":"Контакты от Магомеда, аналог REERPORTER/REQTRANS","status":"Активный"},{"id":"certification_0","type":"Сертификация","name":"Абсолют Стандарт, г.Москва","spec":"Сертификация","country":"Россия","address":"","contacts":"Специалист отдела сертификации | Тихонова Анастасия Юрьевна (уволилась) | тел.:+7(499)404-03-86,доб.318 | моб.:+7(978)747-21-86 | почта: 1502@rtslog.ru | Руководитель отдела сертификации | Колосов Анд","site":"absolute-st.ru","notes":"","status":"Активный"},{"id":"certification_1","type":"Сертификация","name":"TUVRheinland, Москва","spec":"Сертификация","country":"Россия","address":"117186, ул. Нагорная 3А, КРУНИТ, Москва","contacts":"Ведущий инженер, начальник механической группы | Саранча Михаил | моб. +7 (926) 553-61-62 | эл.почта: mikhail.sarancha@ru.tuv.com","site":"www.tuv.com","notes":"","status":"Активный"},{"id":"certification_2","type":"Сертификация","name":"ИП Михайлов И.Н., МО, г.Красногорск","spec":"Сертификация","country":"Россия","address":"","contacts":"Дарья Михайлова моб. +7 968 921-62-23 | sert.eac.md@gmail.com","site":"","notes":"","status":"Активный"},{"id":"certification_3","type":"Сертификация","name":"ООО \"Логис\"","spec":"Сертификация","country":"Россия","address":"","contacts":"mosyakova@logis-sertifikat.ru | Мосякова Надежда Фёдоровна | Tel.: +7 9199993522 |       +7(499) 350-13-78 доб.135","site":"","notes":"","status":"Активный"},{"id":"certification_4","type":"Сертификация","name":"Rstcertify","spec":"Сертификация","country":"Россия","address":"","contacts":"Владимир Руднев | mail@rstcertify.ru","site":"","notes":"","status":"Активный"},{"id":"translators_0","type":"Переводчик","name":"Бюро переводов Translate73 (ИП Кяримов М.М.), г.Ульяновск","spec":"Переводы документов","country":"Россия","address":"г.Ульяновск, ул.Гончарова 34а, офис 105","contacts":"Марсель Кяримов | translate73@yandex.ru | тел: 8 (9510) 96-19-96","site":"http://www.translate73.ru/","notes":"Перевод деклараций","status":"Активный"}],"shipments":[{"id":"","supplier":"SIGMA","shipment":"Поставка оборудования (окантовки, клеевые) · 4 поставка","status":"ЗАКРЫТО","category":"Оборудование","route":"Жд-авто","scheme":"Напрямую","order_date":"19.09.2025","ready_plan":"30.10.2025","ready_fact":"15.10.2025","prod_deviation":-15.0,"arrival_plan":"10.12.2025","arrival_fact":"03.12.2025","load_date":"23.10.2025","depart_date":"12.11.2025","dt_submit":"01.12.2025","dt_release":"01.12.2025","delivery_deviation":-7.0,"total_days":47.0,"cost_plan_rub":1281112.1,"cost_fact_rub":1277817.64,"logistics_plan":871518.4,"logistics_fact":870370.4,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":4442.46,"items":[{"name":"Auto sewing tape edge machine SM-2700А-300UC-S\nАвтоматическая швейная машина SM-","qty":1.0,"price_plan":75680.0,"price_fact":75680.0},{"name":"Auto sewing tape edge machine SM-2700А-300UC-S\nАвтоматическая швейная машина SM-","qty":1.0,"price_plan":75680.0,"price_fact":75680.0},{"name":"Auto sewing tape edge machine SM-2700А-300UC-S\nАвтоматическая швейная машина SM-","qty":1.0,"price_plan":75680.0,"price_fact":75680.0},{"name":"Tape edge machine SM-2700B-300UC-S\nОкантовочная машина SM-2700B-300UC-S","qty":1.0,"price_plan":35679.0,"price_fact":35679.0},{"name":"Tape edge machine SM-2700B-300UC-S\nОкантовочная машина SM-2700B-300UC-S","qty":1.0,"price_plan":35679.0,"price_fact":35679.0}]},{"id":"","supplier":"ИТОГО","shipment":"","status":"","category":"","route":"","scheme":"","order_date":"","ready_plan":"","ready_fact":"","prod_deviation":null,"arrival_plan":"","arrival_fact":"","load_date":"","depart_date":"","dt_submit":"","dt_release":"","delivery_deviation":null,"total_days":null,"cost_plan_rub":null,"cost_fact_rub":null,"logistics_plan":null,"logistics_fact":null,"risk":"","econ_effect":0.0,"items":[]},{"id":"","supplier":"HengSheng","shipment":"Станки резки ППУ · Самарская индустрия","status":"ЗАКРЫТО","category":"Оборудование","route":"Море-жд-авто","scheme":"ч/з Агента","order_date":"22.07.2025","ready_plan":"15.09.2025","ready_fact":"19.09.2025","prod_deviation":4.0,"arrival_plan":"28.11.2025","arrival_fact":"14.01.2026","load_date":"13.10.2025","depart_date":"01.12.2025","dt_submit":"17.12.2025","dt_release":"17.12.2025","delivery_deviation":47.0,"total_days":103.0,"cost_plan_rub":1193623.0,"cost_fact_rub":1299764.77,"logistics_plan":574999.81,"logistics_fact":480013.6,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":-11155.56,"items":[{"name":"HSPQ-2150 Horizontal foam cutting machine \nСтанок для горизонтальной резки порол","qty":1.0,"price_plan":76500.0,"price_fact":76500.0},{"name":"HSLQ-4L Vertical foam cutting machine (BIG)\nCтанок для вертикальной резки пороло","qty":1.0,"price_plan":32640.0,"price_fact":32640.0},{"name":"HSYX-2150 Profile cutting machine\nСтанок для профильной резки поролона, HSYX-215","qty":1.0,"price_plan":116280.0,"price_fact":116280.0}]},{"id":"","supplier":"NAIGU","shipment":"Оборудование (NG-01M + NG-06R) · 5 поставка(2025)","status":"ЗАКРЫТО","category":"Оборудование","route":"Море-жд-авто","scheme":"Напрямую","order_date":"03.09.2025","ready_plan":"08.10.2025","ready_fact":"20.10.2025","prod_deviation":12.0,"arrival_plan":"17.11.2025","arrival_fact":"16.12.2025","load_date":"03.11.2025","depart_date":"09.11.2025","dt_submit":"21.11.2025","dt_release":"22.11.2025","delivery_deviation":29.0,"total_days":84.0,"cost_plan_rub":812615.65,"cost_fact_rub":810254.69,"logistics_plan":550000.0,"logistics_fact":549949.42,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":2411.54,"items":[{"name":"NG-01M Semi-automatic mattress compressor \n(4 cylinders)\nПолуавтоматический прес","qty":1.0,"price_plan":42000.0,"price_fact":42000.0},{"name":"NG-01M Semi-automatic mattress compressor \n(4 cylinders)\nПолуавтоматический прес","qty":1.0,"price_plan":42000.0,"price_fact":42000.0},{"name":"NG-06R Semi-automatic mattress rolling machine \nПолуавтоматическая машина для уп","qty":1.0,"price_plan":31500.0,"price_fact":31500.0},{"name":"NG-06R Semi-automatic mattress rolling machine \nПолуавтоматическая машина для уп","qty":1.0,"price_plan":31500.0,"price_fact":31500.0}]},{"id":"","supplier":"NAIGU","shipment":"Оборудование (NG-01M + NG-06R) · 6 поставка(2025)","status":"ЗАКРЫТО","category":"Оборудование","route":"Море-жд-авто","scheme":"Напрямую","order_date":"16.09.2025","ready_plan":"21.10.2025","ready_fact":"29.10.2025","prod_deviation":8.0,"arrival_plan":"17.11.2025","arrival_fact":"18.12.2025","load_date":"03.11.2025","depart_date":"09.11.2025","dt_submit":"21.11.2025","dt_release":"22.11.2025","delivery_deviation":31.0,"total_days":82.0,"cost_plan_rub":1027996.02,"cost_fact_rub":873974.92,"logistics_plan":550000.0,"logistics_fact":549949.42,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":154071.68,"items":[{"name":"NG-01M Semi-automatic mattress compressor \n(4 cylinders)\nПолуавтоматический прес","qty":1.0,"price_plan":42000.0,"price_fact":42000.0},{"name":"NG-06R Semi-automatic mattress rolling machine \nПолуавтоматическая машина для уп","qty":1.0,"price_plan":32000.0,"price_fact":32000.0},{"name":"NG-06R Semi-automatic mattress rolling machine \nПолуавтоматическая машина для уп","qty":1.0,"price_plan":32000.0,"price_fact":32000.0},{"name":"NG-06R Semi-automatic mattress rolling machine \nПолуавтоматическая машина для уп","qty":1.0,"price_plan":32000.0,"price_fact":32000.0}]},{"id":"","supplier":"MUYE","shipment":"Станки резки ППУ: HV6, H7S · Гибкие формы","status":"ЗАКРЫТО","category":"Оборудование","route":"Жд-авто","scheme":"ч/з Агента","order_date":"26.09.2025","ready_plan":"25.11.2025","ready_fact":"24.11.2025","prod_deviation":-1.0,"arrival_plan":"25.12.2025","arrival_fact":"29.12.2025","load_date":"26.11.2025","depart_date":"03.12.2025","dt_submit":"24.12.2025","dt_release":"24.12.2025","delivery_deviation":4.0,"total_days":85.0,"cost_plan_rub":4046887.44,"cost_fact_rub":4785137.6,"logistics_plan":595000.0,"logistics_fact":620204.65,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":-763454.81,"items":[{"name":"CNC Foam Contour Cutting Machine HV6\nСтанок для горизонтальной и вертикальной фи","qty":1.0,"price_plan":307500.0,"price_fact":307500.0},{"name":"CNC Foam Contour Cutting Machine H7S\nСтанок для горизонтальной фигурной резки по","qty":1.0,"price_plan":246000.0,"price_fact":246000.0}]},{"id":"","supplier":"NAIGU","shipment":"Оборудование (NG-01M + NG-06R) · 7 поставка(2025)","status":"ЗАКРЫТО","category":"Оборудование","route":"Море-жд-авто","scheme":"Напрямую","order_date":"14.11.2025","ready_plan":"10.12.2025","ready_fact":"10.12.2025","prod_deviation":0.0,"arrival_plan":"20.01.2026","arrival_fact":"16.02.2026","load_date":"13.12.2025","depart_date":"21.12.2025","dt_submit":"12.01.2026","dt_release":"12.01.2026","delivery_deviation":27.0,"total_days":83.0,"cost_plan_rub":891743.57,"cost_fact_rub":860716.31,"logistics_plan":723200.0,"logistics_fact":672083.69,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":82143.57,"items":[{"name":"NG-01M Semi-automatic mattress compressor \n(4 cylinders)\nПолуавтоматический прес","qty":1.0,"price_plan":42000.0,"price_fact":42000.0},{"name":"NG-01M Semi-automatic mattress compressor \n(4 cylinders)\nПолуавтоматический прес","qty":1.0,"price_plan":42000.0,"price_fact":42000.0},{"name":"NG-06R Semi-automatic mattress rolling machine \nПолуавтоматическая машина для уп","qty":1.0,"price_plan":31500.0,"price_fact":31500.0},{"name":"NG-06R Semi-automatic mattress rolling machine \nПолуавтоматическая машина для уп","qty":1.0,"price_plan":31500.0,"price_fact":31500.0}]},{"id":"","supplier":"NAIGU","shipment":"Оборудование (NG-01M + NG-06R) · 8 поставка(2025)","status":"ЗАКРЫТО","category":"Оборудование","route":"Море-жд-авто","scheme":"Напрямую","order_date":"16.11.2025","ready_plan":"24.12.2025","ready_fact":"26.12.2025","prod_deviation":2.0,"arrival_plan":"10.02.2026","arrival_fact":"12.02.2026","load_date":"03.01.2026","depart_date":"08.01.2026","dt_submit":"16.01.2026","dt_release":"16.01.2026","delivery_deviation":2.0,"total_days":75.0,"cost_plan_rub":891743.57,"cost_fact_rub":836513.19,"logistics_plan":723200.0,"logistics_fact":616959.66,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":161470.72,"items":[{"name":"NG-01M Semi-automatic mattress compressor \n(4 cylinders)\nПолуавтоматический прес","qty":1.0,"price_plan":42000.0,"price_fact":42000.0},{"name":"NG-01M Semi-automatic mattress compressor \n(4 cylinders)\nПолуавтоматический прес","qty":1.0,"price_plan":42000.0,"price_fact":42000.0},{"name":"NG-06R Semi-automatic mattress rolling machine \nПолуавтоматическая машина для уп","qty":1.0,"price_plan":31500.0,"price_fact":31500.0},{"name":"NG-06R Semi-automatic mattress rolling machine \nПолуавтоматическая машина для уп","qty":1.0,"price_plan":31500.0,"price_fact":31500.0}]},{"id":"","supplier":"LIAN ROU","shipment":"UVS 180 + 97P · Ч/З ТЕКСДАР · 21 ВЕК","status":"В РАБОТЕ","category":"Оборудование","route":"Море-жд-авто","scheme":"ч/з Агента","order_date":"19.11.2025","ready_plan":"06.01.2026","ready_fact":"06.01.2026","prod_deviation":0.0,"arrival_plan":"01.04.2026","arrival_fact":"","load_date":"02.02.2026","depart_date":"08.02.2026","dt_submit":"","dt_release":"","delivery_deviation":null,"total_days":null,"cost_plan_rub":4602000.0,"cost_fact_rub":0.0,"logistics_plan":645000.0,"logistics_fact":0.0,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":5247000.0,"items":[{"name":"Pocket spring machine LR-PS-UVS 180\nПружинонавивочный станок LR-PS-UVS 180","qty":1.0,"price_plan":297100.0,"price_fact":297100.0},{"name":"Pocket spring assembly machine LR-PSA-97P\nСборочный станок для пружинных блоков ","qty":1.0,"price_plan":396180.0,"price_fact":396180.0}]},{"id":"","supplier":"HENGCHANG","shipment":"HC-QG-E · Ч/З ТЕКСДАР · 21 ВЕК","status":"В РАБОТЕ","category":"Оборудование","route":"Море-жд-авто","scheme":"ч/з Агента","order_date":"24.11.2025","ready_plan":"11.12.2025","ready_fact":"24.12.2025","prod_deviation":13.0,"arrival_plan":"09.04.2026","arrival_fact":"","load_date":"06.02.2026","depart_date":"15.02.2026","dt_submit":"24.02.2026","dt_release":"24.02.2026","delivery_deviation":null,"total_days":null,"cost_plan_rub":1680665.0,"cost_fact_rub":0.0,"logistics_plan":645000.0,"logistics_fact":0.0,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":2325665.0,"items":[{"name":"QUILTED PANEL AND BORDER CUTTING MACHINE HC-QG-E\nСтанок раскроечный для раскроя ","qty":1.0,"price_plan":99715.0,"price_fact":99715.0}]},{"id":"","supplier":"HENGCHANG","shipment":"HC3300 · ЧЕРЕЗ ИП ХАСЯНОВ · 21 ВЕК","status":"В РАБОТЕ","category":"Оборудование","route":"Море-жд-авто","scheme":"ч/з Агента","order_date":"24.11.2025","ready_plan":"20.01.2026","ready_fact":"24.12.2025","prod_deviation":-27.0,"arrival_plan":"09.04.2026","arrival_fact":"","load_date":"06.02.2026","depart_date":"15.02.2026","dt_submit":"25.02.2026","dt_release":"25.02.2026","delivery_deviation":null,"total_days":null,"cost_plan_rub":3645886.0,"cost_fact_rub":0.0,"logistics_plan":645000.0,"logistics_fact":0.0,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":4290886.0,"items":[{"name":"HC3300 AUTOMATIC MULTI-NEEDLE CHAIN STITCH QUILTING MACHINE\nАвтоматическая много","qty":1.0,"price_plan":270655.0,"price_fact":270655.0}]},{"id":"","supplier":"Yingmao Machinery Manufacturing","shipment":"YR-SR-P-200 · И.П. ИСАЕВ","status":"ЗАКРЫТО","category":"Оборудование","route":"Сборка, авто","scheme":"ч/з Агента","order_date":"05.12.2025","ready_plan":"05.01.2026","ready_fact":"05.01.2026","prod_deviation":0.0,"arrival_plan":"20.02.2026","arrival_fact":"13.02.2026","load_date":"19.01.2026","depart_date":"20.01.2026","dt_submit":"12.02.2026","dt_release":"12.02.2026","delivery_deviation":-7.0,"total_days":55.0,"cost_plan_rub":1400000.0,"cost_fact_rub":1246067.99,"logistics_plan":300671.73,"logistics_fact":198604.54,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":255999.2,"items":[{"name":"Multi-purpose roll packaging machine, \nY3M-200-1200\nМногоцелевой рулонный упаков","qty":1.0,"price_plan":77500.0,"price_fact":68750.0}]},{"id":"","supplier":"NAIGU","shipment":"Оборудование (NG-01M + NG-06R) · 9 поставка(2025)","status":"В РАБОТЕ","category":"Оборудование","route":"Море-жд-авто","scheme":"Напрямую","order_date":"09.12.2025","ready_plan":"15.01.2026","ready_fact":"05.01.2026","prod_deviation":-10.0,"arrival_plan":"27.04.2026","arrival_fact":"","load_date":"07.03.2026","depart_date":"12.03.2026","dt_submit":"","dt_release":"","delivery_deviation":null,"total_days":null,"cost_plan_rub":857000.0,"cost_fact_rub":0.0,"logistics_plan":700000.0,"logistics_fact":0.0,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":1557000.0,"items":[{"name":"NG-01M Semi-automatic mattress compressor \n(4 cylinders)\nПолуавтоматический прес","qty":1.0,"price_plan":42000.0,"price_fact":42000.0},{"name":"NG-01M Semi-automatic mattress compressor \n(4 cylinders)\nПолуавтоматический прес","qty":1.0,"price_plan":42000.0,"price_fact":42000.0},{"name":"NG-06R Semi-automatic mattress rolling machine \nПолуавтоматическая машина для уп","qty":1.0,"price_plan":31500.0,"price_fact":31500.0},{"name":"NG-06R Semi-automatic mattress rolling machine \nПолуавтоматическая машина для уп","qty":1.0,"price_plan":31500.0,"price_fact":31500.0}]},{"id":"","supplier":"SIGMA","shipment":"Поставка оборудования (окантовки, клеевые) · 5 поставка","status":"ЗАКРЫТО","category":"Оборудование","route":"Жд-авто","scheme":"Напрямую","order_date":"12.12.2025","ready_plan":"03.02.2026","ready_fact":"16.01.2026","prod_deviation":-18.0,"arrival_plan":"05.03.2026","arrival_fact":"18.02.2026","load_date":"23.01.2026","depart_date":"29.01.2026","dt_submit":"16.02.2026","dt_release":"16.02.2026","delivery_deviation":-15.0,"total_days":55.0,"cost_plan_rub":1338762.48,"cost_fact_rub":1269925.2,"logistics_plan":914388.3,"logistics_fact":730004.18,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":253221.4,"items":[{"name":"Auto sewing tape edge machine SM-2700А-300UC-S\nАвтоматическая швейная машина SM-","qty":1.0,"price_plan":75300.0,"price_fact":75675.0},{"name":"Auto sewing tape edge machine SM-2700А-300UC-S\nАвтоматическая швейная машина SM-","qty":1.0,"price_plan":75300.0,"price_fact":75675.0},{"name":"Auto sewing tape edge machine SM-2700А-300UC-S\nАвтоматическая швейная машина SM-","qty":1.0,"price_plan":75300.0,"price_fact":75675.0},{"name":"Auto sewing tape edge machine SM-2700А-300UC-S\nАвтоматическая швейная машина SM-","qty":1.0,"price_plan":75300.0,"price_fact":75675.0},{"name":"Flange machine SM-4000C\nОверлок SM-4000C","qty":1.0,"price_plan":35300.0,"price_fact":35495.0}]},{"id":"","supplier":"NAIGU","shipment":"Оборудование (NG-01M + NG-40RL-C) · 10 поставка","status":"В РАБОТЕ","category":"Оборудование","route":"Море-жд-авто","scheme":"Напрямую","order_date":"29.12.2025","ready_plan":"01.02.2026","ready_fact":"05.02.2026","prod_deviation":4.0,"arrival_plan":"27.03.2026","arrival_fact":"","load_date":"08.06.2026","depart_date":"15.02.2026","dt_submit":"24.02.2026","dt_release":"02.03.2026","delivery_deviation":null,"total_days":null,"cost_plan_rub":905000.0,"cost_fact_rub":0.0,"logistics_plan":675000.0,"logistics_fact":0.0,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":1580000.0,"items":[{"name":"NG-01M Semi-automatic mattress compressor  ( 4 cylinders)","qty":1.0,"price_plan":49000.0,"price_fact":44500.0},{"name":"NG-40RL-C Semi-Automatic Foam Sofa and Mattress Roll-Packing Machine","qty":1.0,"price_plan":99000.0,"price_fact":98500.0}]},{"id":"","supplier":"NAIGU","shipment":"Оборудование (NG-41RL + стрейч) · 1 поставка","status":"В РАБОТЕ","category":"Оборудование","route":"Море-жд-авто","scheme":"Напрямую","order_date":"15.01.2026","ready_plan":"01.02.2026","ready_fact":"29.01.2026","prod_deviation":-3.0,"arrival_plan":"27.03.2026","arrival_fact":"","load_date":"08.06.2026","depart_date":"15.02.2026","dt_submit":"24.02.2026","dt_release":"02.03.2026","delivery_deviation":null,"total_days":null,"cost_plan_rub":4880275.64,"cost_fact_rub":0.0,"logistics_plan":698570.41,"logistics_fact":0.0,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":5578846.05,"items":[{"name":"NG-41RL-A Automatic Foam Sofa Compress and Rolling machine\nАвтоматическая машина","qty":1.0,"price_plan":288000.0,"price_fact":288000.0},{"name":"PE Film (for rolling machine)\nСтрейч-пленка (для упаковочной машины)","qty":1100.0,"price_plan":11330.0,"price_fact":11330.0}]},{"id":"","supplier":"MERT MAKINA","shipment":"M-2 · Лиситея/Перрино","status":"В РАБОТЕ","category":"Оборудование","route":"Авто","scheme":"ч/з Агента","order_date":"28.01.2026","ready_plan":"12.03.2026","ready_fact":"17.02.2026","prod_deviation":-23.0,"arrival_plan":"","arrival_fact":"","load_date":"23.03.2026","depart_date":"","dt_submit":"","dt_release":"","delivery_deviation":null,"total_days":null,"cost_plan_rub":8178739.46,"cost_fact_rub":0.0,"logistics_plan":520000.0,"logistics_fact":0.0,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":8698739.46,"items":[{"name":"Автоматическая двухголовочная стегальная машина М-2","qty":1.0,"price_plan":76000.0,"price_fact":76000.0}]},{"id":"","supplier":"YABAO","shipment":"Поставка трикотажного полотна · 1 поставка","status":"ЗАКРЫТО","category":"Ткани","route":"Море-жд-авто","scheme":"ч/з Агента","order_date":"01.01.2026","ready_plan":"31.01.2026","ready_fact":"31.01.2026","prod_deviation":0.0,"arrival_plan":"","arrival_fact":"01.01.2026","load_date":"","depart_date":"","dt_submit":"","dt_release":"","delivery_deviation":null,"total_days":null,"cost_plan_rub":45.34,"cost_fact_rub":0.0,"logistics_plan":620000.0,"logistics_fact":0.0,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":620045.34,"items":[{"name":"Tricot fabric (100% polyester)\ndesign No.: M3868-5, 70gsm, width 212cm\nH.S. code","qty":120000.0,"price_plan":318000.0,"price_fact":0.0}]},{"id":"","supplier":"Yingmao Machinery Manufacturing","shipment":"Y3M-220-1200 · И.П. ИСАЕВ","status":"В РАБОТЕ","category":"Оборудование","route":"Сборка, авто","scheme":"ч/з Агента","order_date":"25.02.2026","ready_plan":"04.04.2026","ready_fact":"","prod_deviation":null,"arrival_plan":"","arrival_fact":"","load_date":"","depart_date":"","dt_submit":"","dt_release":"","delivery_deviation":null,"total_days":null,"cost_plan_rub":1404641.17,"cost_fact_rub":0.0,"logistics_plan":300000.0,"logistics_fact":0.0,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":1704641.17,"items":[{"name":"Multi-purpose roll packaging machine, \nY3M-220-1200\nМногоцелевой рулонный упаков","qty":1.0,"price_plan":68750.0,"price_fact":68750.0}]},{"id":"","supplier":"Yingmao Machinery Manufacturing","shipment":"Y3M-10T-SB-1000 · ТЕРРИТОРИЯ СНА","status":"В РАБОТЕ","category":"Оборудование","route":"Сборка, авто","scheme":"ч/з Агента","order_date":"25.02.2026","ready_plan":"25.02.2026","ready_fact":"25.02.2026","prod_deviation":0.0,"arrival_plan":"","arrival_fact":"","load_date":"05.03.2026","depart_date":"10.03.2026","dt_submit":"","dt_release":"","delivery_deviation":null,"total_days":null,"cost_plan_rub":1269686.14,"cost_fact_rub":0.0,"logistics_plan":330000.0,"logistics_fact":0.0,"risk":"РИСК ОТСУТСТВУЕТ","econ_effect":1599686.14,"items":[{"name":"Semi-automatic packing machine Y3M-10T-SB-1000\nПолуавтоматический упаковочный ст","qty":1.0,"price_plan":56000.0,"price_fact":57800.0}]}],"rates":[{"id":"rate_1","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"ПАО ТРАНСКОНТЕЙНЕР","direction":"Шеньчжень-Находка-Тольятти-Ульяновск","rate_total":"9750","rate_intl":"4950","rate_rf":"4800","days":"-","date":"2024-11-06","notes":""},{"id":"rate_2","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"ПАО ТРАНСКОНТЕЙНЕР","direction":"Гуанчжоу-Находка-Тольятти-Ульяновск","rate_total":"10050","rate_intl":"5250","rate_rf":"4800","days":"-","date":"2024-11-04","notes":""},{"id":"rate_3","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"ПАО ТРАНСКОНТЕЙНЕР","direction":"Нинбо-Находка-Тольятти-Ульяновск","rate_total":"10165","rate_intl":"5365","rate_rf":"4800","days":"-","date":"2024-11-04","notes":""},{"id":"rate_4","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"ООО \"ТрансТимЛоджистик\"","direction":"FOB Shanghai - ППК-1- Селятино-Ульяновск","rate_total":"9785.714285714286","rate_intl":"4591.836734693878","rate_rf":"5193.877551020408","days":"-","date":"2024-11-07","notes":""},{"id":"rate_5","country_from":"Китай","mode":"Ж/д перевозка","type":"1х40HQ контейнер","carrier":"EAST LOGISTICS","direction":"«Станция Pinghunan – Забайкальск – Станция Селятино»","rate_total":"9600","rate_intl":"-","rate_rf":"-","days":"-","date":"2024-11-06","notes":"Ещё нужно привезти контейнер до г. Ульяновск (около 150.000 руб)"},{"id":"rate_6","country_from":"Китай","mode":"Ж/д перевозка","type":"1х40HQ контейнер","carrier":"EAST LOGISTICS","direction":"«Станция Xian – Алтынколь – Станция Электроугли»","rate_total":"8800","rate_intl":"-","rate_rf":"-","days":"-","date":"2024-11-06","notes":"Ещё нужно привезти контейнер до г. Ульяновск (около 150.000 руб)"},{"id":"rate_7","country_from":"Турция","mode":"Автомобильная","type":"Комплектная фура","carrier":"REEXPORTER (бывш. REQ TRANS)","direction":"г. Кайсери - г. Москва","rate_total":"8000","rate_intl":"-","rate_rf":"-","days":"-","date":"2024-11-13","notes":""},{"id":"rate_8","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"ПАО ТРАНСКОНТЕЙНЕР","direction":"Шеньчжень-Находка-Тольятти-Ульяновск","rate_total":"9500","rate_intl":"5000","rate_rf":"4500","days":"-","date":"2024-11-22","notes":""},{"id":"rate_9","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"SHENZHEN BILLIAN","direction":"FOB Shanghai - Владивосток - Казань - Ульяновск","rate_total":"9150","rate_intl":"5000","rate_rf":"4150","days":"-","date":"2024-11-28","notes":""},{"id":"rate_10","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"ТрансКонтейнер, филиал Ульяновск (ГК \"ДЕЛО\")","direction":"Гуанчжоу-Находка-Тольятти-Ульяновск","rate_total":"8195","rate_intl":"3545","rate_rf":"4650","days":"-","date":"2025-01-17","notes":""},{"id":"rate_11","country_from":"Китай","mode":"Ж/д перевозка","type":"1х40HQ контейнер","carrier":"\"100 EХPRESS\" LLC, Москва","direction":"Гуанчжоу-Москва-Ульяновск","rate_total":"8470","rate_intl":"6650","rate_rf":"1820","days":"-","date":"2025-01-18","notes":""},{"id":"rate_12","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"\"100 EХPRESS\" LLC, Москва","direction":"Гуанчжоу-Владивосток-Москва-Ульяновск","rate_total":"9090","rate_intl":"3700","rate_rf":"5390","days":"-","date":"2025-01-19","notes":""},{"id":"rate_13","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"Трансимпериал","direction":"Гуанчжоу-Находка-Тольятти-Ульяновск","rate_total":"9396","rate_intl":"3681","rate_rf":"5715","days":"-","date":"2025-01-19","notes":""},{"id":"rate_14","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"Давид Костюк","direction":"Гуанчжоу-Находка-Тольятти-Ульяновск","rate_total":"9964","rate_intl":"4800","rate_rf":"5164","days":"-","date":"2025-01-19","notes":""},{"id":"rate_15","country_from":"Китай","mode":"Ж/д","type":"1х40HQ контейнер","carrier":"\"100 EХPRESS\" LLC, Москва","direction":"FOB Гуанчжоу- Москва - 5100$ , Москва-Ульяновск - 159000 руб. (Вывоз+терминалка+возврат и пр.)","rate_total":"7090","rate_intl":"5100","rate_rf":"1990","days":"-","date":"2025-03-01","notes":""},{"id":"rate_16","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"ТрансКонтейнер, филиал Ульяновск (ГК \"ДЕЛО\")","direction":"Гуанчжоу-Находка-Тольятти-Ульяновск","rate_total":"6005","rate_intl":"1715","rate_rf":"4290","days":"-","date":"2025-03-01","notes":""},{"id":"rate_17","country_from":"Китай","mode":"Ж/д","type":"1х40HQ контейнер","carrier":"ТрансКонтейнер, филиал Ульяновск (ГК \"ДЕЛО\")","direction":"Гуанчжоу-маньчжурия-Забайкальск-Ульяновск","rate_total":"6701","rate_intl":"2325","rate_rf":"4376","days":"-","date":"2025-03-01","notes":""},{"id":"rate_18","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"Трансимпериал","direction":"FOB  port Nansha - РФ, порт Врангель Бэй -  РФ, Тольятти (ЗАО \"ТЭС\") - РФ, Ульяновск","rate_total":"6800","rate_intl":"1775","rate_rf":"5025","days":"-","date":"2025-04-01","notes":""},{"id":"rate_19","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"Трансимпериал","direction":"FOB  port Nansha - port Busan (фидер) - РФ, порт Врангель Бэй -  РФ, Тольятти - РФ, Ульяновск","rate_total":"7595","rate_intl":"2205","rate_rf":"5390","days":"-","date":"2025-04-01","notes":""},{"id":"rate_20","country_from":"Китай","mode":"Ж/д","type":"1х40HQ контейнер","carrier":"Трансимпериал","direction":"FOB GUANGZHOU-со станции DATIAN-погран ERLIAN - прибытие MOSCOW","rate_total":"7555","rate_intl":"5430","rate_rf":"2125","days":"-","date":"2025-04-01","notes":""},{"id":"rate_21","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"Prime way","direction":"FOB Нанша-Владивосток-МСК-Ульяновск","rate_total":"6515","rate_intl":"2950","rate_rf":"3565","days":"-","date":"2025-04-29","notes":""},{"id":"rate_22","country_from":"Китай","mode":"Ж/д","type":"1х40HQ контейнер","carrier":"Prime way","direction":"FOB Guangzhou/Shenzhen -- Manzhouli/Erenhot -- FOR Moscow (Selyatino/Electrougli)","rate_total":"5500","rate_intl":"","rate_rf":"","days":"","date":"2025-04-30","notes":""},{"id":"rate_23","country_from":"Китай","mode":"Ж/д","type":"1х40HQ контейнер","carrier":"Нептун Логистикс Рус","direction":"FOB Guangzhou-ЗБК-Ульяновск-3（645100）","rate_total":"7300","rate_intl":"-","rate_rf":"-","days":"","date":"2025-05-01","notes":""},{"id":"rate_24","country_from":"Турция","mode":"Авто","type":"Комплектная фура","carrier":"REEXPORTER (бывш. REQ TRANS)","direction":"г. Кайсери - г.Омск","rate_total":"7200","rate_intl":"-","rate_rf":"-","days":"-","date":"2025-05-15","notes":"Виктория Мебель"},{"id":"rate_25","country_from":"Китай","mode":"","type":"1х40HQ контейнер","carrier":"INTER LOGISTIC LIMITED,","direction":"FOB Наньша - ВСК Лагерная","rate_total":"7350","rate_intl":"1850","rate_rf":"5500","days":"","date":"2025-05-19","notes":""},{"id":"rate_26","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"ТрансКонтейнер, филиал Ульяновск (ГК \"ДЕЛО\")","direction":"Гуанчжоу-Находка-Тольятти-Ульяновск","rate_total":"6075","rate_intl":"1725","rate_rf":"4350","days":"-","date":"2025-05-28","notes":"НАЙГУ (3й контейнер)"},{"id":"rate_27","country_from":"Китай","mode":"Ж/д","type":"1х40HQ контейнер","carrier":"Транзит Групп","direction":"-","rate_total":"7500","rate_intl":"0","rate_rf":"0","days":"","date":"2025-06-01","notes":""},{"id":"rate_28","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"ИСТ Глобал Лоджистик","direction":"Гуанчжоу-Находка-Тольятти-Ульяновск","rate_total":"7290","rate_intl":"1790","rate_rf":"5500","days":"","date":"2025-06-01","notes":""},{"id":"rate_29","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"ИСТ Глобал Лоджистик","direction":"Гуанчжоу-Находка-Москва-Ульяновск","rate_total":"6670","rate_intl":"1670","rate_rf":"5000","days":"","date":"2025-06-01","notes":""},{"id":"rate_30","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"ТрансКонтейнер, филиал Ульяновск (ГК \"ДЕЛО\")","direction":"Гуанчжоу-Находка-Тольятти-Ульяновск","rate_total":"5900","rate_intl":"1400","rate_rf":"4500","days":"-","date":"2025-06-06","notes":"ЯБАО, ТРИКОТ"},{"id":"rate_31","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"ТрансКонтейнер, филиал Ульяновск (ГК \"ДЕЛО\")","direction":"Гуанчжоу-Находка-Тольятти-Ульяновск","rate_total":"6226","rate_intl":"1651","rate_rf":"4575","days":"-","date":"2025-06-30","notes":"НАЙГУ (4й контейнер)"},{"id":"rate_32","country_from":"Китай","mode":"Ж/д","type":"1х40HQ контейнер","carrier":"ТрансКонтейнер, филиал Ульяновск (ГК \"ДЕЛО\")","direction":"Шанхай-Колядичи (Беларусь)","rate_total":"8000","rate_intl":"2500","rate_rf":"5500","days":"-","date":"2025-07-09","notes":""},{"id":"rate_33","country_from":"Китай","mode":"Ж/д","type":"1х40HQ контейнер","carrier":"\"100 EХPRESS\" LLC, Москва","direction":"ТАЙЧЖОУ-МОСКВА-УЛЬЯНОВСК","rate_total":"9526","rate_intl":"2880","rate_rf":"6646","days":"-","date":"2025-09-02","notes":""},{"id":"rate_34","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"\"100 EХPRESS\" LLC, Москва","direction":"ТАЙЧЖОУ-ВЛАДИВОСТОК-УЛЬЯНОВСК","rate_total":"8100","rate_intl":"3400","rate_rf":"4700","days":"-","date":"2025-09-02","notes":""},{"id":"rate_35","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"ТрансКонтейнер, филиал Ульяновск (ГК \"ДЕЛО\")","direction":"Тайчжоу-Нинбо-Находка-Тольятти-Ульяновск","rate_total":"7700","rate_intl":"2800","rate_rf":"4900","days":"-","date":"2025-09-02","notes":""},{"id":"rate_36","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"ТрансКонтейнер, филиал Ульяновск (ГК \"ДЕЛО\")","direction":"Шеньчжень-Находка-Тольятти-Самара","rate_total":"5340","rate_intl":"1570","rate_rf":"3770","days":"-","date":"2025-09-19","notes":""},{"id":"rate_37","country_from":"Турция","mode":"Авто","type":"Комплектная фура","carrier":"ООО ТСВ","direction":"Кайсери-Растаможка Краснодар-Выгрузка ОМСК","rate_total":"11290","rate_intl":"4516","rate_rf":"6774","days":"-","date":"2025-10-07","notes":"ОМСК для статистики"},{"id":"rate_38","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"\"100 EХPRESS\" LLC, Москва","direction":"ТАЙЧЖОУ-ВЛАДИВОСТОК-УЛЬЯНОВСК","rate_total":"8000","rate_intl":"3200","rate_rf":"4800","days":"-","date":"2025-10-15","notes":"Сигма, 4-й контейнер"},{"id":"rate_39","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"Трансимпериал","direction":"FOB Нанша-Владивосток-МСК-Ульяновск","rate_total":"7570","rate_intl":"2200","rate_rf":"5370","days":"-","date":"2025-10-20","notes":"Найгу, 5 и 6 конт"},{"id":"rate_40","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"Трансимпериал","direction":"FOB Нанша-Владивосток-МСК-Ульяновск","rate_total":"8100","rate_intl":"2600","rate_rf":"5500","days":"-","date":"2025-12-05","notes":"Найгу, 7 конт"},{"id":"rate_41","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"Трансимпериал","direction":"FOB Нанша-Владивосток-МСК-Ульяновск","rate_total":"8100","rate_intl":"2600","rate_rf":"5500","days":"-","date":"2025-12-05","notes":"Найгу, 8 конт"},{"id":"rate_42","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"Трансимпериал","direction":"FOB Нанша-Владивосток-МСК-Ульяновск","rate_total":"8584.615384615385","rate_intl":"2700","rate_rf":"5884.615384615385","days":"-","date":"2026-01-21","notes":"NAIGU l Оборудование (NG-41RL + стрейч) l 1 поставка"},{"id":"rate_43","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"Трансимпериал","direction":"FOB Нанша-Владивосток-МСК-Ульяновск","rate_total":"8584.615384615385","rate_intl":"2700","rate_rf":"5884.615384615385","days":"-","date":"2026-01-21","notes":"NAIGU l Оборудование (NG-01M + NG-40RL-C) l 10 поставка"},{"id":"rate_44","country_from":"Китай","mode":"Ж/д","type":"1х40HQ контейнер","carrier":"Трансимпериал","direction":"ТАЙЧЖОУ-МОСКВА-УЛЬЯНОВСК","rate_total":"9707.692307692309","rate_intl":"7400","rate_rf":"2307.6923076923076","days":"-","date":"2026-01-19","notes":"SIGMA l Поставка оборудования (окантовки, оверлок, клеевая) l 5 поставка"},{"id":"rate_45","country_from":"Китай","mode":"Ж/д","type":"1х40HQ контейнер","carrier":"\"100 EХPRESS\" LLC, Москва","direction":"ТАЙЧЖОУ-МОСКВА-УЛЬЯНОВСК","rate_total":"11000","rate_intl":"8000","rate_rf":"3000","days":"-","date":"2026-01-19","notes":"SIGMA l Поставка оборудования (окантовки, оверлок, клеевая) l 5 поставка"},{"id":"rate_46","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"Трансимпериал","direction":"FOB  Nansha -  Врангель Бэй  -  Ростов - Отрадная","rate_total":"8884.615384615385","rate_intl":"3000","rate_rf":"5884.615384615385","days":"-","date":"2026-01-20","notes":"LIAN ROU l UVS 180 + 97P l Ч/З ТЕКСДАР l 21 ВЕК"},{"id":"rate_47","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"Трансимпериал","direction":"FOB Nansha - порт Novo - Отрадный","rate_total":"7188.461538461539","rate_intl":"5650","rate_rf":"1538.4615384615386","days":"-","date":"2026-01-20","notes":"LIAN ROU l UVS 180 + 97P l Ч/З ТЕКСДАР l 21 ВЕК"},{"id":"rate_48","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"ООО «Центр логистических услуг»","direction":"FOB FILO Nansha - Vladivostok\nТЭО Владивосток\nЖД  ВМРП – Тольятти\nПРР + Авто Тольятти","rate_total":"7500","rate_intl":"3000","rate_rf":"4500","days":"-","date":"2026-02-03","notes":""},{"id":"rate_49","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"Трансимпериал","direction":"FOB  Nansha -  Врангель Бэй  -  Ростов - Отрадная","rate_total":"8784.615384615385","rate_intl":"2900","rate_rf":"5884.615384615385","days":"-","date":"2026-01-29","notes":"HENGCHANG l HC-QG-E l Ч/З ТЕКСДАР l 21 ВЕК"},{"id":"rate_50","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"Трансимпериал","direction":"FOB  Nansha -  Врангель Бэй  -  Ростов - Отрадная","rate_total":"8784.615384615385","rate_intl":"2900","rate_rf":"5884.615384615385","days":"-","date":"2026-01-29","notes":"HENGCHANG l HC3300 l ЧЕРЕЗ ИП ХАСЯНОВ l 21 ВЕК"},{"id":"rate_51","country_from":"Китай","mode":"Мультимодальная (море+жд+авто)","type":"1х40HQ контейнер","carrier":"Трансимпериал","direction":"FOB Нанша-Владивосток-МСК-Ульяновск","rate_total":"8048.717948717948","rate_intl":"2600","rate_rf":"5448.717948717948","days":"-","date":"2026-03-02","notes":"Найгу, 9 конт"}],"contracts":[{"id":"c0","supplier":"FOSHAN DA LYU IMPORT AND EXPORT CO., LIMITED","country":"Китай","contract_num":"CONTRACT № 050624","sign_date":"2024-06-05","validity":"13.05.2025 Продление до 31.12.2025, Дополнительное соглашение 1 от 28.02.2025 Продление до 31.12.2026, Дополнительное со","currency":"CNY","unk":"24060134/3545/0000/2/1","reg_date":"2024-06-10","total_sum":"-","status":"Активный"},{"id":"c1","supplier":"Beijing Bangsheng International Trade Co., Ltd.","country":"Китай","contract_num":"СONTRACT № 101224","sign_date":"2024-12-10","validity":"2025-12-31 00:00:00","currency":"CNY","unk":"-","reg_date":"-","total_sum":"-","status":"Активный"},{"id":"c2","supplier":"SHENZHEN BILIAN INTERNATIONAL FREIGHT FORWARDING CO., LTD","country":"Китай","contract_num":"СONTRACT № 2405/13","sign_date":"2024-05-13","validity":"2025-05-13 00:00:00","currency":"CNY","unk":"24060093/3545/0000/2/1","reg_date":"2024-06-06","total_sum":"-","status":"Активный"},{"id":"c3","supplier":"SHENZHEN BILIAN INTERNATIONAL FREIGHT FORWARDING CO., LTD","country":"Китай","contract_num":"ДОГОВОР ТРАНСПОРТНОЙ ЭКСПЕДИЦИИ № ГЛ-2408-15/TEXDAR-SB","sign_date":"2024-08-15","validity":"2024-12-31 00:00:00","currency":"CNY","unk":"-","reg_date":"-","total_sum":"-","status":"Активный"},{"id":"c4","supplier":"SHENZHEN BILIAN INTERNATIONAL FREIGHT FORWARDING CO., LTD","country":"Китай","contract_num":"ГЛ-2501-10/TEXDAR-SB","sign_date":"2025-01-10","validity":"2027-12-31 00:00:00","currency":"CNY","unk":"-","reg_date":"-","total_sum":"-","status":"Активный"},{"id":"c5","supplier":"SIGMA MATTRESS MACHINERY (ZHEJIANG) CO., LTD.","country":"Китай","contract_num":"СONTRACT № SIGMA16/12","sign_date":"2024-12-16","validity":"31.12.2025 продлен до 31.12.2026, Дополнительное соглашение 1 от 17.12.2025","currency":"CNY","unk":"25021009/1000 /0081/2/1","reg_date":"2025-02-10","total_sum":"-","status":"Активный"},{"id":"c6","supplier":"“REEXPORTER” L.T.D\nИП ХАСЯНОВ","country":"Грузия","contract_num":"Contract № REX140525/1","sign_date":"2025-05-14","validity":"2026-12-31 00:00:00","currency":"EUR","unk":"25050079/1000/0081/9/2","reg_date":"2025-05-23","total_sum":"-","status":"Активный"},{"id":"c7","supplier":"JINHUA GREAT RISE INDUSTRY AND COMMERCE LTD","country":"Китай","contract_num":"CONTRACT № JINHUA01/04","sign_date":"2024-04-01","validity":"2025-12-31 00:00:00","currency":"CNY","unk":"25091298/1000/0081/2/1","reg_date":"2025-09-05","total_sum":"-","status":"Активный"},{"id":"c8","supplier":"GUANGDONG NAIGU TECHNOLOGY CO.,LTD","country":"Китай","contract_num":"Contract No. NAIGU12/08/01","sign_date":"2025-08-12","validity":"2026-12-31 00:00:00","currency":"CNY","unk":"25091523 /1000/0081/2/1","reg_date":"2025-09-08","total_sum":"-","status":"Активный"},{"id":"c9","supplier":"SHANGHAI ASIAN WINGSSUPPLY CHAIN CO,LTD","country":"Китай","contract_num":"Contract No. WNGS290925","sign_date":"2025-09-29","validity":"2026-12-31 00:00:00","currency":"CNY","unk":"-","reg_date":"-","total_sum":"-","status":"Активный"},{"id":"c10","supplier":"FOSHAN DA LYU IMPORT AND EXPORT CO., LIMITED \nИП ХАСЯНОВ","country":"Китай","contract_num":"CONTRACT № 281025","sign_date":"2025-10-28","validity":"2027-12-31 00:00:00","currency":"CNY","unk":"25112019/1000/0081/2/2","reg_date":"2025-11-12","total_sum":"-","status":"Активный"},{"id":"c11","supplier":"Beijing Bangsheng International Trade Co., Ltd.","country":"Китай","contract_num":"Contract 031225","sign_date":"2025-12-03","validity":"2026-12-31 00:00:00","currency":"CNY","unk":"-","reg_date":"-","total_sum":"-","status":"Активный"},{"id":"c12","supplier":"NANTONG MUYE MACHINERY","country":"Китай","contract_num":"MUYE01/12","sign_date":"2025-12-01","validity":"2027-12-31 00:00:00","currency":"CNY","unk":"-","reg_date":"-","total_sum":"-","status":"Активный"},{"id":"c13","supplier":"Jade (Hong Kong) Supply Chain Management Limited","country":"Китай","contract_num":"№ Jade/17/12","sign_date":"2025-12-17","validity":"2026-12-31 00:00:00","currency":"CNY","unk":"-","reg_date":"-","total_sum":"-","status":"Активный"},{"id":"c14","supplier":"“REEXPORTER” L.T.D\nТЕКСДАР","country":"Грузия","contract_num":"REX220126/1","sign_date":"2026-01-22","validity":"2026-12-31 00:00:00","currency":"EUR","unk":"26020005/1000/0081/9/1","reg_date":"2026-02-03","total_sum":"-","status":"Активный"},{"id":"c15","supplier":"Keiquri","country":"Китай","contract_num":"№ KEQIRUI/11/11","sign_date":"2025-11-11","validity":"2026-02-28 00:00:00","currency":"CNY","unk":"-","reg_date":"-","total_sum":"-","status":"Активный"},{"id":"c16","supplier":"Jiada (Guangzhou) Supply Chain Management Co.,Ltd,","country":"Китай","contract_num":"JIADA/25/02/2026","sign_date":"2026-02-25","validity":"2026-12-31 00:00:00","currency":"CNY","unk":"-","reg_date":"-","total_sum":"-","status":"Активный"},{"id":"c17","supplier":"ARMTEX","country":"Китай","contract_num":"SCGOAON260209RUA(R1)","sign_date":"2026-02-10","validity":"2026-12-31 00:00:00","currency":"CNY","unk":"-","reg_date":"-","total_sum":"-","status":"Активный"}]};
+
+// ── STATE ─────────────────────────────────────────────────────────────────
+const DB = { contractors:[], shipments:[], rates:[], contracts:[] };
+let cur = 'home';
+let cFilter = { contractors:'', shipments:'', rates:'', contracts:'' };
+let cCountry = { contractors:'', rates:'' };
+let pages = { contractors:1, shipments:1, rates:1, contracts:1 };
+let selId = { contractors:null, shipments:null, rates:null, contracts:null };
+let sortK = { contractors:'name', shipments:'order_date', rates:'country_from', contracts:'supplier' };
+let sortA = { contractors:true, shipments:false, rates:true, contracts:true };
+const PER = 20;
+let supaClient = null;
+let useSupabase = false;
+
+// ── SUPABASE INIT ─────────────────────────────────────────────────────────
+async function initSupabase() {
+  try {
+    const { createClient } = supabase;
+    supaClient = createClient(SUPA_URL, SUPA_KEY);
+    const { data, error } = await supaClient.from('contractors').select('id').limit(1);
+    if (!error) {
+      useSupabase = true;
+      document.getElementById('conn-dot').style.background = 'var(--green)';
+      document.getElementById('conn-dot').title = 'Подключено к Supabase';
+      await loadFromSupabase();
+    } else throw error;
+  } catch(e) {
+    console.warn('Supabase unavailable, using fallback:', e.message);
+    loadFallback();
+  }
+}
+
+async function loadFromSupabase() {
+  const [c,s,r,ct] = await Promise.all([
+    supaClient.from('contractors').select('*').order('name'),
+    supaClient.from('shipments').select('*').order('id'),
+    supaClient.from('rates').select('*').order('id'),
+    supaClient.from('contracts').select('*').order('id'),
+  ]);
+  if (c.data) DB.contractors = c.data.map(normalizeContractor);
+  if (s.data) DB.shipments   = s.data.map(normalizeShipment);
+  if (r.data) DB.rates       = r.data.map(normalizeRate);
+  if (ct.data) DB.contracts  = ct.data.map(normalizeContract);
+}
+
+function normalizeContractor(r) {
+  return { ...r, _id: r.id, id: 'c_'+r.id };
+}
+function normalizeShipment(r) {
+  return { ...r, _id: r.id, id: 's_'+r.id,
+    supplier_full: r.supplier + (r.shipment ? ' · '+r.shipment : ''),
+    risk: (r.risk||'').replace(/✅|⚠️|🔴/g,'').trim(),
+  };
+}
+function normalizeRate(r) {
+  return { ...r, _id: r.id, id: 'r_'+r.id, date: r.rate_date||r.date||'' };
+}
+function normalizeContract(r) {
+  return { ...r, _id: r.id, id: 'ct_'+r.id };
+}
+
+function loadFallback() {
+  document.getElementById('conn-dot').style.background = 'var(--amber)';
+  document.getElementById('conn-dot').title = 'Офлайн — данные из кэша';
+  DB.contractors = FALLBACK.contractors.map(r=>({...r, _id:r.id}));
+  DB.shipments   = FALLBACK.shipments.map(r=>({...r, _id:r.id,
+    risk:(r.risk||'').replace(/✅|⚠️|🔴/g,'').trim()}));
+  DB.rates       = FALLBACK.rates.map(r=>({...r, _id:r.id}));
+  DB.contracts   = FALLBACK.contracts.map(r=>({...r, _id:r.id}));
+}
+
+// ── SUPABASE CRUD ─────────────────────────────────────────────────────────
+async function dbInsert(table, data) {
+  if (!useSupabase) { toast('Нет подключения к базе','err'); return false; }
+  const { error } = await supaClient.from(table).insert(data);
+  if (error) { toast('Ошибка: '+error.message,'err'); return false; }
+  await loadFromSupabase();
+  updateCounts();
+  toast('Запись добавлена','ok');
+  return true;
+}
+
+async function dbUpdate(table, id, data) {
+  if (!useSupabase) { toast('Нет подключения к базе','err'); return false; }
+  const { error } = await supaClient.from(table).update(data).eq('id',id);
+  if (error) { toast('Ошибка: '+error.message,'err'); return false; }
+  await loadFromSupabase();
+  return true;
+}
+
+async function dbDelete(table, id) {
+  if (!useSupabase) { toast('Нет подключения к базе','err'); return false; }
+  if (!confirm('Удалить запись? Это действие нельзя отменить.')) return false;
+  const { error } = await supaClient.from(table).delete().eq('id',id);
+  if (error) { toast('Ошибка: '+error.message,'err'); return false; }
+  await loadFromSupabase();
+  toast('Запись удалена','ok');
+  return true;
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────
+function goPage(id, filter='', country='') {
+  cur = id;
+  // tabs
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active', t.dataset.page===id));
+  // pages
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  // sidebar
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  const ni = document.querySelector(`.ni[data-sec="${id}"][data-filter="${filter}"]`);
+  if (ni) ni.classList.add('active');
+  // reset
+  if (filter !== cFilter[id]) { pages[id]=1; selId[id]=null; }
+  cFilter[id] = filter;
+  if (country!==undefined) cCountry[id] = country;
+  // clear search
+  const qi = document.getElementById('q-'+id);
+  if (qi) qi.value='';
+  if (id==='home') renderHome();
+  else if (id!=='calc') render(id);
+}
+
+// wire tabs
+document.querySelectorAll('.tab').forEach(t=>{
+  t.onclick = ()=> goPage(t.dataset.page);
+});
+// wire nav items
+document.querySelectorAll('.ni').forEach(n=>{
+  n.onclick = ()=> goPage(n.dataset.sec, n.dataset.filter||'');
+});
+
+// ── COUNTS ────────────────────────────────────────────────────────────────
+function updateCounts() {
+  const c = DB.contractors, s = DB.shipments, r = DB.rates, ct = DB.contracts;
+  const cnt = (arr, fn) => fn ? arr.filter(fn).length : arr.length;
+  const set = (id, n) => { const el=document.getElementById(id); if(el) el.textContent=n; };
+  set('tc-contractors', c.length);
+  set('tc-shipments', s.length);
+  set('tc-rates', r.length);
+  set('tc-contracts', ct.length);
+  set('nb-all', c.length);
+  const types = {'sup':'Поставщик','car':'Перевозчик','svh':'СВХ','brk':'Тамож. брокер','agt':'Агент/Услуги','crt':'Сертификация','trl':'Переводчик'};
+  Object.entries(types).forEach(([k,v])=> set('nb-'+k, c.filter(r=>r.type===v).length));
+  set('nb-shp', s.length);
+  set('nb-shp-w', s.filter(r=>r.status==='В РАБОТЕ').length);
+  set('nb-rts', r.length);
+  set('nb-ctr', ct.length);
+}
+
+// ── DATA HELPERS ──────────────────────────────────────────────────────────
+function filtered(sec) {
+  const q = (document.getElementById('q-'+sec)?.value||'').toLowerCase().trim();
+  const f = cFilter[sec];
+  const co = cCountry[sec];
+  let data = [...DB[sec]];
+  if (sec==='contractors') {
+    if (f) data = data.filter(r=>r.type===f);
+    if (co) data = data.filter(r=>r.country===co);
+  } else if (sec==='shipments') {
+    if (f) data = data.filter(r=>r.status===f);
+  } else if (sec==='rates') {
+    if (f) data = data.filter(r=>r.country_from===f);
+    if (co) data = data.filter(r=>r.mode===co);
+  }
+  if (q) data = data.filter(r=>Object.values(r).some(v=>v&&String(v).toLowerCase().includes(q)));
+  // sort
+  const k = sortK[sec];
+  if (k) data.sort((a,b)=>{
+    const av=String(a[k]||''), bv=String(b[k]||'');
+    return sortA[sec] ? av.localeCompare(bv,'ru') : bv.localeCompare(av,'ru');
+  });
+  return data;
+}
+
+// ── RENDER UNIVERSAL ──────────────────────────────────────────────────────
+function render(sec) {
+  const data = filtered(sec);
+  const all = DB[sec];
+  renderStats(sec, data, all);
+  renderChips(sec, all);
+  renderTable(sec, data);
+  renderPager(sec, data.length);
+  if (selId[sec] && !data.find(r=>r.id===selId[sec])) { closeDetail(sec); }
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────
+function renderStats(sec, data, all) {
+  const el = document.getElementById('stats-'+sec);
+  if (!el) return;
+  let cards = [];
+  if (sec==='contractors') {
+    const countries = [...new Set(all.map(r=>r.country).filter(Boolean))].length;
+    cards = [
+      ['Всего',all.length,'var(--accent)','записей'],
+      ['Активных',all.filter(r=>r.status==='Активный').length,'var(--green)',''],
+      ['Стран',countries,'var(--purple)',''],
+      ['В выборке',data.length,'',''],
+    ];
+  } else if (sec==='shipments') {
+    const inW = all.filter(r=>r.status==='В РАБОТЕ').length;
+    const cls = all.filter(r=>r.status==='ЗАКРЫТО').length;
+    const devs = all.filter(r=>r.prod_deviation!=null).map(r=>+r.prod_deviation);
+    const avg = devs.length ? Math.round(devs.reduce((a,b)=>a+b,0)/devs.length) : 0;
+    const econ = all.filter(r=>r.econ_effect).reduce((a,r)=>a+(+r.econ_effect||0),0);
+    cards = [
+      ['В работе',inW,'var(--amber)','активных'],
+      ['Закрыто',cls,'var(--green)',''],
+      ['Ср. откл. произв.',(avg>0?'+':'')+avg+' дн',avg>0?'var(--red)':'var(--green)',''],
+      ['Экон. эффект',fmt(econ)+' ₽','var(--green)','суммарно'],
+    ];
+  } else if (sec==='rates') {
+    const ctrs = [...new Set(all.map(r=>r.country_from).filter(Boolean))].length;
+    const nums = all.map(r=>parseFloat(r.rate_total)).filter(v=>!isNaN(v));
+    const mn = nums.length?Math.min(...nums):0, mx = nums.length?Math.max(...nums):0;
+    cards = [
+      ['Ставок',all.length,'var(--accent)',''],
+      ['Стран вывоза',ctrs,'var(--purple)',''],
+      ['Мин. ставка','$'+fmt(mn),'var(--green)','USD'],
+      ['Макс. ставка','$'+fmt(mx),'var(--amber)','USD'],
+    ];
+  } else if (sec==='contracts') {
+    const act = all.filter(r=>r.status==='Активный').length;
+    const curr = [...new Set(all.map(r=>r.currency).filter(Boolean))];
+    cards = [
+      ['Всего',all.length,'var(--accent)','контрактов'],
+      ['Активных',act,'var(--green)',''],
+      ['Валюты',curr.join(', '),'var(--purple)',''],
+      ['В выборке',data.length,'',''],
+    ];
+  }
+  el.innerHTML = cards.map(([l,v,c,s])=>`
+    <div class="stat">
+      <div class="stat-l">${l}</div>
+      <div class="stat-v" style="${c?'color:'+c:''}">${v}</div>
+      ${s?`<div class="stat-s">${s}</div>`:''}
+    </div>`).join('');
+}
+
+// ── CHIPS ─────────────────────────────────────────────────────────────────
+function renderChips(sec, all) {
+  const el = document.getElementById('chips-'+sec);
+  if (!el) return;
+  let html = '';
+  if (sec==='contractors') {
+    const countries = [...new Set(all.map(r=>r.country).filter(Boolean))].sort();
+    html = '<span style="font-size:10px;color:var(--text3);margin-right:2px">Страна:</span>';
+    html += `<span class="chip ${!cCountry[sec]?'on':''}" onclick="setChip('contractors','',true)">Все</span>`;
+    html += countries.slice(0,6).map(c=>`<span class="chip ${cCountry[sec]===c?'on':''}" onclick="setChip('contractors','${esc(c)}',true)">${c}</span>`).join('');
+  } else if (sec==='shipments') {
+    ['','В РАБОТЕ','ЗАКРЫТО'].forEach(s=>{
+      const lbl = s||'Все';
+      html += `<span class="chip ${cFilter[sec]===s?'on':''}" onclick="setChip('shipments','${s}')">${lbl}</span>`;
+    });
+  } else if (sec==='rates') {
+    const ctrs = [...new Set(all.map(r=>r.country_from).filter(Boolean))].sort();
+    html = `<span class="chip ${!cFilter[sec]?'on':''}" onclick="setChip('rates','')">Все</span>`;
+    html += ctrs.map(c=>`<span class="chip ${cFilter[sec]===c?'on':''}" onclick="setChip('rates','${esc(c)}')">${c}</span>`).join('');
+    const modes = [...new Set(all.map(r=>r.mode).filter(Boolean))];
+    if (modes.length) {
+      html += '<span style="margin-left:6px;font-size:10px;color:var(--text3)">Тип:</span>';
+      html += modes.slice(0,4).map(m=>`<span class="chip ${cCountry[sec]===m?'on':''}" onclick="setChip('rates','${esc(m)}',true)">${m.split('(')[0].trim().slice(0,18)}</span>`).join('');
+    }
+  }
+  el.innerHTML = html;
+}
+
+function setChip(sec, val, isCountry=false) {
+  if (isCountry) cCountry[sec]=val; else cFilter[sec]=val;
+  pages[sec]=1; render(sec);
+  // update sidebar
+  if (sec==='shipments') {
+    document.querySelectorAll('.ni[data-sec="shipments"]').forEach(n=>n.classList.remove('active'));
+    const ni = document.querySelector(`.ni[data-sec="shipments"][data-filter="${val}"]`);
+    if (ni) ni.classList.add('active');
+  }
+}
+
+// ── TABLE ─────────────────────────────────────────────────────────────────
+function renderTable(sec, data) {
+  const el = document.getElementById('tbl-'+sec);
+  const total = data.length;
+  const p = pages[sec];
+  const rows = data.slice((p-1)*PER, p*PER);
+
+  if (!rows.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">🔍</div>Ничего не найдено</div>';
+    return;
+  }
+
+  let head='', body='';
+  if (sec==='contractors') {
+    head = thRow(['Название','Тип','Страна','Специализация','Статус',''], sec, ['name','type','country','spec','status','']);
+    body = rows.map(r=>`<tr class="${selId[sec]===r.id?'sel':''} fade-in" onclick="openDetail('${sec}','${r.id}')">
+      <td><div class="td-main">${hi(r.name||'—',sec)}</div></td>
+      <td>${typeBadge(r.type)}</td>
+      <td>${r.country?`<span class="b b-purple">${r.country}</span>`:'<span class="td-dim">—</span>'}</td>
+      <td class="td-dim">${trunc(r.spec,24)||'—'}</td>
+      <td><span class="b ${r.status==='Активный'?'b-green':'b-gray'}">${r.status}</span></td>
+      <td><div style="display:flex;gap:4px;opacity:0;transition:opacity .12s" class="row-actions">
+        <button class="sort-btn" onclick="event.stopPropagation();editRecord('${sec}','${r.id}')">✏</button>
+        <button class="sort-btn" style="color:var(--red)" onclick="event.stopPropagation();delRecord('${sec}','${r._id}')">✕</button>
+      </div></td>
+    </tr>`).join('');
+  } else if (sec==='shipments') {
+    head = thRow(['Поставщик','Статус','Маршрут','Дата заказа','Приход план','Приход факт','Откл. произв.','Откл. дост.','Риск'], sec, ['supplier','status','route','order_date','arrival_plan','arrival_fact','prod_deviation','delivery_deviation','risk']);
+    body = rows.map(r=>`<tr class="${selId[sec]===r.id?'sel':''} fade-in" onclick="openDetail('${sec}','${r.id}')">
+      <td><div class="td-main">${trunc(r.supplier,28)}</div><div class="td-sub">${trunc(r.shipment,30)}</div></td>
+      <td><span class="b ${r.status==='В РАБОТЕ'?'b-amber':r.status==='ЗАКРЫТО'?'b-green':'b-gray'}">${r.status||'—'}</span></td>
+      <td class="td-dim">${trunc(r.route,18)||'—'}</td>
+      <td class="td-mono">${r.order_date||'—'}</td>
+      <td class="td-mono td-dim">${r.arrival_plan||'—'}</td>
+      <td class="td-mono" style="font-weight:500">${r.arrival_fact||'—'}</td>
+      <td class="${devCls(r.prod_deviation)}">${devTxt(r.prod_deviation)}</td>
+      <td class="${devCls(r.delivery_deviation)}">${devTxt(r.delivery_deviation)}</td>
+      <td>${riskBadge(r.risk)}</td>
+    </tr>`).join('');
+  } else if (sec==='rates') {
+    head = thRow(['Страна','Способ','Перевозчик','Направление','Ставка USD','До РФ','По РФ','Дата'], sec, ['country_from','mode','carrier','direction','rate_total','rate_intl','rate_rf','date']);
+    body = rows.map(r=>`<tr class="${selId[sec]===r.id?'sel':''} fade-in" onclick="openDetail('${sec}','${r.id}')">
+      <td><span class="b b-purple">${r.country_from||'—'}</span></td>
+      <td class="td-dim">${trunc(r.mode,20)||'—'}</td>
+      <td class="td-main">${trunc(r.carrier,24)||'—'}</td>
+      <td class="td-dim" style="font-size:11px">${trunc(r.direction,30)||'—'}</td>
+      <td><strong style="color:var(--green);font-family:'JetBrains Mono',monospace">${r.rate_total?'$'+r.rate_total:'—'}</strong></td>
+      <td class="td-mono td-dim">${r.rate_intl?'$'+r.rate_intl:'—'}</td>
+      <td class="td-mono td-dim">${r.rate_rf?'$'+r.rate_rf:'—'}</td>
+      <td class="td-mono td-dim" style="font-size:10px">${(r.date||'').slice(0,10)||'—'}</td>
+    </tr>`).join('');
+  } else if (sec==='contracts') {
+    head = thRow(['Поставщик','Страна','№ контракта','Дата','Срок','Валюта','УНК','Статус'], sec, ['supplier','country','contract_num','sign_date','validity','currency','unk','status']);
+    body = rows.map(r=>`<tr class="${selId[sec]===r.id?'sel':''} fade-in" onclick="openDetail('${sec}','${r.id}')">
+      <td class="td-main">${trunc(r.supplier,28)||'—'}</td>
+      <td><span class="b b-purple">${r.country||'—'}</span></td>
+      <td class="td-mono">${r.contract_num||'—'}</td>
+      <td class="td-mono td-dim" style="font-size:11px">${(r.sign_date||'').slice(0,10)||'—'}</td>
+      <td class="td-dim" style="font-size:11px">${trunc(r.validity,28)||'—'}</td>
+      <td><span class="b b-blue">${r.currency||'—'}</span></td>
+      <td class="td-mono td-dim" style="font-size:11px">${r.unk||'—'}</td>
+      <td><span class="b ${r.status==='Активный'?'b-green':'b-gray'}">${r.status||'—'}</span></td>
+    </tr>`).join('');
+  }
+
+  el.innerHTML = `<table><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  // row hover actions
+  el.querySelectorAll('tr').forEach(tr=>{
+    tr.addEventListener('mouseenter',()=>{ const a=tr.querySelector('.row-actions'); if(a)a.style.opacity='1'; });
+    tr.addEventListener('mouseleave',()=>{ const a=tr.querySelector('.row-actions'); if(a)a.style.opacity='0'; });
+  });
+}
+
+function thRow(labels, sec, keys) {
+  return '<tr>'+labels.map((l,i)=>{
+    if (!keys[i]) return `<th style="width:60px"></th>`;
+    const asc = sortK[sec]===keys[i] && sortA[sec];
+    const desc = sortK[sec]===keys[i] && !sortA[sec];
+    return `<th class="${asc?'sort-asc':desc?'sort-desc':''}" onclick="doSort('${sec}','${keys[i]}')">${l}</th>`;
+  }).join('')+'</tr>';
+}
+
+function doSort(sec, k) {
+  if (sortK[sec]===k) sortA[sec]=!sortA[sec]; else {sortK[sec]=k; sortA[sec]=true;}
+  render(sec);
+}
+
+// ── DETAIL PANEL ──────────────────────────────────────────────────────────
+function openDetail(sec, id) {
+  selId[sec] = id;
+  const r = DB[sec].find(x=>x.id===id);
+  if (!r) return;
+  const panel = document.getElementById('dp-'+sec);
+  panel.className = 'detail open';
+
+  let ava='', avaStyle='background:var(--g-bg);color:var(--accent);border-color:rgba(79,142,247,.2)';
+  if (sec==='contractors') {
+    ava = (r.name||'?').split(/[\s,]+/).map(w=>w[0]).filter(Boolean).join('').slice(0,2).toUpperCase();
+  } else if (sec==='shipments') {
+    ava='📦'; avaStyle='background:var(--g-amber);color:var(--amber);font-size:18px;border-color:rgba(240,164,41,.2)';
+  } else if (sec==='rates') {
+    ava='💰'; avaStyle='background:var(--g-green);color:var(--green);font-size:18px;border-color:rgba(61,214,140,.2)';
+  } else if (sec==='contracts') {
+    ava='📄'; avaStyle='background:var(--g-purple);color:var(--purple);font-size:18px;border-color:rgba(158,140,245,.2)';
+  }
+
+  let name='', sub='', sections='';
+  if (sec==='contractors') {
+    name=r.name; sub=r.type+(r.country?' · '+r.country:'');
+    sections = dpSec('Основная информация', [
+      ['Тип', typeBadge(r.type)],
+      ['Страна', r.country?`<span class="b b-purple">${r.country}</span>`:'—'],
+      ['Специализация', r.spec||'—'],
+      ['Сайт', r.site?`<a href="${r.site}" target="_blank" style="color:var(--accent);font-size:11px">${r.site.slice(0,40)}</a>`:'—'],
+      ['Статус', `<span class="b ${r.status==='Активный'?'b-green':'b-gray'}">${r.status}</span>`],
+    ]);
+    if (r.address) sections += dpSec('Адрес', null, r.address);
+    if (r.contacts) sections += dpSec('Контакты', null, r.contacts.replace(/\|/g,'
+'));
+    if (r.notes) sections += dpSec('Примечания', null, r.notes);
+  } else if (sec==='shipments') {
+    name=r.supplier; sub=r.shipment;
+    sections = dpSec('Статус и маршрут', [
+      ['Статус', `<span class="b ${r.status==='В РАБОТЕ'?'b-amber':'b-green'}">${r.status}</span>`],
+      ['Маршрут', r.route||'—'],
+      ['Схема', r.scheme||'—'],
+      ['Категория', r.category||'—'],
+    ]);
+    sections += dpSec('Производство', [
+      ['Дата заказа', r.order_date||'—'],
+      ['Готовность план', r.ready_plan||'—'],
+      ['Готовность факт', r.ready_fact||'—'],
+      ['Отклонение', `<span class="${devCls(r.prod_deviation)}">${devTxt(r.prod_deviation)}</span>`],
+    ]);
+    sections += dpSec('Доставка', [
+      ['Загрузка', r.load_date||'—'],
+      ['Отбытие', r.depart_date||'—'],
+      ['Подача ДТ', r.dt_submit||'—'],
+      ['Выпуск ДТ', r.dt_release||'—'],
+      ['Приход план', r.arrival_plan||'—'],
+      ['Приход факт', r.arrival_fact||'—'],
+      ['Откл. доставки', `<span class="${devCls(r.delivery_deviation)}">${devTxt(r.delivery_deviation)}</span>`],
+      ['Итого дней', r.total_days!=null?r.total_days+' дн.':'—'],
+    ]);
+    sections += dpSec('Себестоимость', [
+      ['С/С план', r.cost_plan_rub!=null?`<span style="font-family:'JetBrains Mono',monospace">${fmt(r.cost_plan_rub)} ₽</span>`:'—'],
+      ['С/С факт', r.cost_fact_rub!=null?`<span style="font-family:'JetBrains Mono',monospace">${fmt(r.cost_fact_rub)} ₽</span>`:'—'],
+      ['Лог. план', r.logistics_plan!=null?`${fmt(r.logistics_plan)} ₽`:'—'],
+      ['Лог. факт', r.logistics_fact!=null?`${fmt(r.logistics_fact)} ₽`:'—'],
+      ['Экон. эффект', r.econ_effect!=null?`<span style="color:var(--green);font-family:'JetBrains Mono',monospace">${fmt(r.econ_effect)} ₽</span>`:'—'],
+    ]);
+  } else if (sec==='rates') {
+    name=r.carrier||'Ставка'; sub=r.country_from+' · '+(r.mode||'').slice(0,30);
+    sections = dpSec('Маршрут', [
+      ['Страна вывоза', r.country_from||'—'],
+      ['Способ', r.mode||'—'],
+      ['Вид', r.type||'—'],
+      ['Перевозчик', r.carrier||'—'],
+      ['Направление', r.direction||'—'],
+    ]);
+    sections += dpSec('Ставки', [
+      ['Общая ставка', `<strong style="color:var(--green);font-family:'JetBrains Mono',monospace">${r.rate_total?'$'+r.rate_total:'—'}</strong>`],
+      ['До РФ, USD', r.rate_intl?'$'+r.rate_intl:'—'],
+      ['По РФ, USD', r.rate_rf?'$'+r.rate_rf:'—'],
+      ['Сроки', r.days||'—'],
+      ['Дата ставки', (r.date||'').slice(0,10)||'—'],
+    ]);
+    if (r.notes) sections += dpSec('Примечания', null, r.notes);
+  } else if (sec==='contracts') {
+    name=r.supplier; sub=r.contract_num+(r.country?' · '+r.country:'');
+    sections = dpSec('Контракт', [
+      ['Номер', r.contract_num||'—'],
+      ['Дата подписания', (r.sign_date||'').slice(0,10)||'—'],
+      ['Срок действия', r.validity||'—'],
+      ['Валюта', `<span class="b b-blue">${r.currency||'—'}</span>`],
+      ['Статус', `<span class="b ${r.status==='Активный'?'b-green':'b-gray'}">${r.status}</span>`],
+    ]);
+    sections += dpSec('Валютный контроль', [
+      ['УНК', `<span style="font-family:'JetBrains Mono',monospace;font-size:11px">${r.unk||'—'}</span>`],
+      ['Дата постановки', (r.reg_date||'').slice(0,10)||'—'],
+      ['Сумма', r.total_sum||'—'],
+    ]);
+  }
+
+  panel.innerHTML = `
+    <div class="dp-head">
+      <div class="dp-ava" style="${avaStyle}">${ava}</div>
+      <div class="dp-info">
+        <div class="dp-name" title="${name}">${name}</div>
+        <div class="dp-sub">${sub}</div>
+      </div>
+      <button class="dp-x" onclick="closeDetail('${sec}')">✕</button>
+    </div>
+    <div class="dp-body">${sections}</div>
+    <div class="dp-actions">
+      <button class="dp-btn" onclick="editRecord('${sec}','${id}')">✏ Изменить</button>
+      ${sec==='contractors'?`<button class="dp-btn danger" onclick="delRecord('${sec}','${r._id}')">Удалить</button>`:''}
+    </div>`;
+
+  render(sec); // re-render to show selected
+}
+
+function closeDetail(sec) {
+  selId[sec]=null;
+  document.getElementById('dp-'+sec).className='detail';
+  render(sec);
+}
+
+function dpSec(title, rows, text) {
+  let inner = '';
+  if (text) inner = `<div class="dp-text">${text.replace(/
+/g,'<br>')}</div>`;
+  else if (rows) inner = rows.map(([k,v])=>`<div class="dp-row"><span class="dp-k">${k}</span><span class="dp-v">${v}</span></div>`).join('');
+  return `<div class="dp-sec"><div class="dp-sec-title">${title}</div>${inner}</div>`;
+}
+
+// ── EDIT ──────────────────────────────────────────────────────────────────
+function editRecord(sec, id) {
+  const r = DB[sec].find(x=>x.id===id);
+  if (!r) return;
+  if (sec==='contractors') openAddContractor(r);
+  else toast('Редактирование через Supabase Table Editor','ok');
+}
+
+async function delRecord(sec, dbId) {
+  const tableMap = {contractors:'contractors',shipments:'shipments',rates:'rates',contracts:'contracts'};
+  const ok = await dbDelete(tableMap[sec], dbId);
+  if (ok) { closeDetail(sec); render(sec); updateCounts(); if(cur==='home') renderHome(); }
+}
+
+// ── PAGINATION ────────────────────────────────────────────────────────────
+function renderPager(sec, total) {
+  const el = document.getElementById('pager-'+sec);
+  if (!el) return;
+  const p = pages[sec];
+  const tp = Math.max(1, Math.ceil(total/PER));
+  const start = Math.min(1+(p-1)*PER, total);
+  const end = Math.min(p*PER, total);
+  const nums = Array.from({length:Math.min(tp,7)},(_,i)=>{
+    let n = tp<=7?i+1:p<=4?i+1:p>=tp-3?tp-6+i:p-3+i;
+    return `<button class="pb ${n===p?'on':''}" onclick="goP('${sec}',${n})">${n}</button>`;
+  }).join('');
+  el.innerHTML = `<span>Показано ${start}–${end} из ${total}</span>
+    <div class="pager-btns">
+      <button class="pb" onclick="goP('${sec}',${p-1})" ${p===1?'disabled':''}>‹</button>
+      ${nums}
+      <button class="pb" onclick="goP('${sec}',${p+1})" ${p===tp?'disabled':''}>›</button>
+    </div>`;
+}
+
+function goP(sec, p) {
+  const tp = Math.max(1, Math.ceil(filtered(sec).length/PER));
+  if (p<1||p>tp) return;
+  pages[sec]=p; render(sec);
+}
+
+// ── HOME ──────────────────────────────────────────────────────────────────
+function renderHome() {
+  const inWork = DB.shipments.filter(r=>r.status==='В РАБОТЕ').length;
+  const econ = DB.shipments.filter(r=>r.econ_effect).reduce((a,r)=>a+(+r.econ_effect||0),0);
+  const cards = [
+    {icon:'🏭',title:'Поставщики',sub:'Производители и поставщики',n:DB.contractors.filter(r=>r.type==='Поставщик').length,sec:'contractors',f:'Поставщик'},
+    {icon:'🚛',title:'Перевозчики',sub:'Транспортные компании',n:DB.contractors.filter(r=>r.type==='Перевозчик').length,sec:'contractors',f:'Перевозчик'},
+    {icon:'🏪',title:'СВХ',sub:'Склады временного хранения',n:DB.contractors.filter(r=>r.type==='СВХ').length,sec:'contractors',f:'СВХ'},
+    {icon:'📋',title:'Брокеры',sub:'Таможенное оформление',n:DB.contractors.filter(r=>r.type==='Тамож. брокер').length,sec:'contractors',f:'Тамож. брокер'},
+    {icon:'🤝',title:'Агенты',sub:'Агентские услуги',n:DB.contractors.filter(r=>r.type==='Агент/Услуги').length,sec:'contractors',f:'Агент/Услуги'},
+    {icon:'📦',title:'Трекер поставок',sub:'План и факт',n:DB.shipments.length,sec:'shipments',f:''},
+    {icon:'💰',title:'Цены доставки',sub:'Реестр ставок',n:DB.rates.length,sec:'rates',f:''},
+    {icon:'📄',title:'Контракты',sub:'Реестр контрактов с УНК',n:DB.contracts.length,sec:'contracts',f:''},
+  ];
+  document.getElementById('home-content').innerHTML = `
+    <div class="home-title">ВЭД — База данных</div>
+    <div class="home-sub">Управление контрагентами, поставками, ценами доставки и контрактами</div>
+    <div class="home-grid">
+      ${cards.map(c=>`<div class="hc" onclick="goPage('${c.sec}','${c.f}')">
+        <div class="hc-icon">${c.icon}</div>
+        <div class="hc-title">${c.title}</div>
+        <div class="hc-sub">${c.sub}</div>
+        <div class="hc-count">${c.n}</div>
+      </div>`).join('')}
+      <div class="hc" onclick="goPage('calc')">
+        <div class="hc-icon">🧮</div>
+        <div class="hc-title">Калькулятор с/с</div>
+        <div class="hc-sub">Расчёт себестоимости</div>
+        <div class="hc-count" style="font-size:20px;margin-top:10px">→</div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;font-weight:600">Ключевые показатели</div>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-l">Всего контрагентов</div><div class="kpi-v" style="color:var(--accent)">${DB.contractors.length}</div><div class="kpi-s">в справочнике</div></div>
+      <div class="kpi"><div class="kpi-l">Поставок в работе</div><div class="kpi-v" style="color:var(--amber)">${inWork}</div><div class="kpi-s">активных</div></div>
+      <div class="kpi"><div class="kpi-l">Экон. эффект</div><div class="kpi-v" style="color:var(--green)">${fmt(econ)} ₽</div><div class="kpi-s">суммарно</div></div>
+    </div>`;
+}
+
+// ── ADD MODAL ─────────────────────────────────────────────────────────────
+function openAdd() {
+  const pageModals = {contractors:openAddContractor,shipments:openAddShipment,rates:openAddRate,contracts:openAddContract};
+  const fn = pageModals[cur];
+  if (fn) fn(); else toast('Выберите раздел','ok');
+}
+
+function openModal(title, bodyHtml, onSave) {
+  document.getElementById('m-title').textContent = title;
+  document.getElementById('m-body').innerHTML = bodyHtml;
+  const saveBtn = document.getElementById('m-save');
+  saveBtn.onclick = async () => {
+    saveBtn.disabled=true; saveBtn.textContent='Сохранение…';
+    await onSave();
+    saveBtn.disabled=false; saveBtn.textContent='Сохранить';
+  };
+  document.getElementById('modal-bg').className='modal-bg open';
+}
+function closeModal() { document.getElementById('modal-bg').className='modal-bg'; }
+document.getElementById('modal-bg').onclick = e=>{ if(e.target.id==='modal-bg') closeModal(); };
+
+function mField(label, id, type='text', placeholder='', opts=null, full=false) {
+  const inp = opts
+    ? `<select class="m-select" id="${id}">${opts.map(o=>`<option>${o}</option>`).join('')}</select>`
+    : type==='textarea'
+    ? `<textarea class="m-textarea" id="${id}" placeholder="${placeholder}"></textarea>`
+    : `<input class="m-input" id="${id}" type="${type}" placeholder="${placeholder}">`;
+  return `<div class="m-field${full?' full':''}">`+
+    `<label class="m-label">${label}</label>${inp}</div>`;
+}
+function mv(id){ const el=document.getElementById(id); return el?el.value.trim():''; }
+
+function openAddContractor(existing=null) {
+  const types=['Поставщик','Перевозчик','СВХ','Тамож. брокер','Агент/Услуги','Сертификация','Переводчик'];
+  const body = `<div class="m-grid">
+    ${mField('Тип *','m-type','text','',types,true)}
+    ${mField('Название *','m-name','text','Название компании','',true)}
+    ${mField('Страна','m-country','text','Китай')}
+    ${mField('Специализация','m-spec','text','Оборудование')}
+    ${mField('Контакты','m-contacts','textarea','Имя, телефон, email',null,true)}
+    ${mField('Сайт','m-site','text','https://')}
+    ${mField('Статус','m-status','text','',['Активный','Неактивный'])}
+    ${mField('Адрес','m-address','text','',null,true)}
+    ${mField('Примечания','m-notes','textarea','',null,true)}
+  </div>`;
+  openModal(existing?'Редактировать контрагента':'Добавить контрагента', body, async ()=>{
+    const name=mv('m-name');
+    if (!name){toast('Введите название','err');return;}
+    const data={type:mv('m-type'),name,country:mv('m-country'),spec:mv('m-spec'),
+      contacts:mv('m-contacts'),site:mv('m-site'),status:mv('m-status'),
+      address:mv('m-address'),notes:mv('m-notes')};
+    if (existing) {
+      const ok=await dbUpdate('contractors',existing._id,data);
+      if(ok){closeModal();render('contractors');updateCounts();}
+    } else {
+      const ok=await dbInsert('contractors',data);
+      if(ok){closeModal();render('contractors');updateCounts();if(cur==='home')renderHome();}
+    }
+  });
+  if (existing) {
+    ['type','name','country','spec','contacts','site','status','address','notes'].forEach(k=>{
+      const el=document.getElementById('m-'+k);
+      if(el) el.value=existing[k]||'';
+    });
+  } else {
+    const typeEl=document.getElementById('m-type');
+    if(typeEl&&cFilter.contractors) typeEl.value=cFilter.contractors;
+  }
+}
+
+function openAddShipment() {
+  const body = `<div class="m-grid">
+    ${mField('Поставщик *','m-supplier','text','SIGMA, Китай',null,true)}
+    ${mField('Описание поставки','m-shipment','text','Оборудование · 5 поставка',null,true)}
+    ${mField('Статус','m-status','text','',['В РАБОТЕ','ЗАКРЫТО'])}
+    ${mField('Категория','m-category','text','Оборудование')}
+    ${mField('Маршрут','m-route','text','Море-жд-авто')}
+    ${mField('Схема','m-scheme','text','Напрямую')}
+    ${mField('Дата заказа','m-order-date','date','')}
+    ${mField('Приход (план)','m-arrival-plan','date','')}
+  </div>`;
+  openModal('Добавить поставку', body, async ()=>{
+    const supplier=mv('m-supplier');
+    if(!supplier){toast('Введите поставщика','err');return;}
+    const ok=await dbInsert('shipments',{supplier,shipment:mv('m-shipment'),status:mv('m-status'),
+      category:mv('m-category'),route:mv('m-route'),scheme:mv('m-scheme'),
+      order_date:mv('m-order-date'),arrival_plan:mv('m-arrival-plan')});
+    if(ok){closeModal();render('shipments');updateCounts();}
+  });
+}
+
+function openAddRate() {
+  const body = `<div class="m-grid">
+    ${mField('Страна вывоза *','m-country','text','Китай')}
+    ${mField('Перевозчик *','m-carrier','text','Название перевозчика')}
+    ${mField('Способ перевозки','m-mode','text','Море+жд+авто',null,true)}
+    ${mField('Вид (контейнер)','m-type','text','1х40HQ')}
+    ${mField('Ставка USD','m-rate','text','9750')}
+    ${mField('Дата ставки','m-date','date','')}
+    ${mField('Направление','m-direction','text','Шанхай — Ульяновск',null,true)}
+  </div>`;
+  openModal('Добавить ставку доставки', body, async ()=>{
+    const carrier=mv('m-carrier');
+    if(!carrier){toast('Введите перевозчика','err');return;}
+    const ok=await dbInsert('rates',{country_from:mv('m-country'),carrier,mode:mv('m-mode'),
+      type:mv('m-type'),rate_total:mv('m-rate'),rate_date:mv('m-date'),direction:mv('m-direction')});
+    if(ok){closeModal();render('rates');updateCounts();}
+  });
+}
+
+function openAddContract() {
+  const body = `<div class="m-grid">
+    ${mField('Поставщик *','m-supplier','text','',null,true)}
+    ${mField('Страна','m-country','text','Китай')}
+    ${mField('№ контракта','m-num','text','CONTRACT №')}
+    ${mField('Дата подписания','m-date','date','')}
+    ${mField('Валюта','m-currency','text','',['CNY','USD','EUR','TRY'])}
+    ${mField('УНК','m-unk','text','')}
+    ${mField('Срок действия','m-validity','text','31.12.2026',null,true)}
+  </div>`;
+  openModal('Добавить контракт', body, async ()=>{
+    const supplier=mv('m-supplier');
+    if(!supplier){toast('Введите поставщика','err');return;}
+    const ok=await dbInsert('contracts',{supplier,country:mv('m-country'),
+      contract_num:mv('m-num'),sign_date:mv('m-date'),currency:mv('m-currency'),
+      unk:mv('m-unk'),validity:mv('m-validity'),status:'Активный'});
+    if(ok){closeModal();render('contracts');updateCounts();}
+  });
+}
+
+// ── CALCULATOR ────────────────────────────────────────────────────────────
+function calcUpdate() {
+  const price=+document.getElementById('c-price').value||0;
+  const rUSD=+document.getElementById('c-rate-usd').value||1;
+  const rRUB=+document.getElementById('c-rate-rub').value||1;
+  const qty=+document.getElementById('c-qty').value||1;
+  const freight=+document.getElementById('c-freight').value||0;
+  const domestic=+document.getElementById('c-domestic').value||0;
+  const dutyPct=+document.getElementById('c-duty').value||0;
+  const vatPct=+document.getElementById('c-vat').value||20;
+  const agentPct=+document.getElementById('c-agent').value||0;
+  const broker=+document.getElementById('c-broker').value||0;
+  const svhC=+document.getElementById('c-svh-cost').value||0;
+  const insurance=+document.getElementById('c-insurance').value||0;
+  const other=+document.getElementById('c-other').value||0;
+
+  const priceUSD=(price/rUSD)*qty;
+  const goodsRUB=priceUSD*rRUB;
+  const freightRUB=freight*rRUB;
+  const agentRUB=goodsRUB*agentPct/100;
+  const customsBase=goodsRUB+freightRUB;
+  const dutyRUB=customsBase*dutyPct/100;
+  const vatBase=customsBase+dutyRUB+agentRUB;
+  const vatRUB=vatBase*vatPct/100;
+  const total=goodsRUB+freightRUB+agentRUB+dutyRUB+vatRUB+broker+svhC+domestic+insurance+other;
+  const perUnit=qty>0?total/qty:0;
+
+  const n=v=>Math.round(v).toLocaleString('ru');
+  document.getElementById('r-usd').textContent='$'+Math.round(priceUSD).toLocaleString('ru');
+  document.getElementById('r-rub').textContent=n(goodsRUB)+' ₽';
+  document.getElementById('r-total').textContent=n(total)+' ₽';
+  document.getElementById('r-unit').textContent=n(perUnit)+' ₽';
+  document.getElementById('r-breakdown').innerHTML=[
+    ['Стоимость товара (валюта→RUB)',goodsRUB],
+    ['Международная доставка',freightRUB],
+    ['Агентское вознаграждение',agentRUB],
+    ['Таможенная пошлина',dutyRUB],
+    ['НДС',vatRUB],
+    ['Брокер + СВХ',broker+svhC],
+    ['Доставка по РФ',domestic],
+    ['Страхование + прочее',insurance+other],
+    ['ИТОГО',total],
+  ].map(([l,v],i)=>`<div class="br-row ${i===8?'style="border-top:1px solid var(--border2);margin-top:4px"':''}" ${i===8?'style="border-top:1px solid var(--border2);margin-top:4px"':''}>
+    <span class="br-l">${l}</span>
+    <span class="br-v" ${i===8?'style="color:var(--green);font-size:14px"':''}>${n(v)} ₽</span>
+  </div>`).join('');
+}
+
+// ── EXPORT ────────────────────────────────────────────────────────────────
+function exportCSV() {
+  const data = filtered(cur);
+  if (!data.length){toast('Нет данных для экспорта','err');return;}
+  const skip=['_id','id','created_at'];
+  const keys=Object.keys(data[0]).filter(k=>!skip.includes(k));
+  const rows=[keys.join(';'),...data.map(r=>keys.map(k=>`"${(r[k]||'').toString().replace(/"/g,'""').replace(/
+/g,' ')}"`).join(';'))];
+  const blob=new Blob(['﻿'+rows.join('
+')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=cur+'_export.csv';a.click();
+  toast('Файл скачан','ok');
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────
+function fmt(v){if(v==null||isNaN(v))return'—';return Math.round(+v).toLocaleString('ru');}
+function trunc(s,n){if(!s)return'';s=String(s);return s.length>n?s.slice(0,n)+'…':s;}
+function esc(s){return String(s).replace(/'/g,"\'")}
+function hi(s,sec){
+  const q=(document.getElementById('q-'+sec)?.value||'').toLowerCase();
+  if(!q||!s)return s;
+  return String(s).replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'),m=>`<mark style="background:rgba(79,142,247,.25);color:var(--accent);border-radius:2px">${m}</mark>`);
+}
+function devCls(v){if(v==null)return'td-dim';return+v<0?'dv-pos':+v>0?'dv-neg':'dv-zero';}
+function devTxt(v){if(v==null)return'—';const n=Math.round(+v);return(n>0?'+':'')+n+' дн.';}
+function riskBadge(r){
+  if(!r||r==='—')return'<span class="b b-gray">—</span>';
+  if(r.includes('ОТСУТСТВУЕТ'))return`<span class="b b-green">${r}</span>`;
+  if(r.includes('УМЕРЕННЫЙ')||r.includes('СРЕДНИЙ'))return`<span class="b b-amber">${r}</span>`;
+  return`<span class="b b-red">${r}</span>`;
+}
+function typeBadge(t){
+  const m={'Поставщик':'b-blue','Перевозчик':'b-teal','СВХ':'b-purple','Тамож. брокер':'b-amber','Агент/Услуги':'b-green','Сертификация':'b-amber','Переводчик':'b-gray'};
+  return`<span class="b ${m[t]||'b-gray'}">${t}</span>`;
+}
+function toast(msg,type='ok'){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.className='show '+(type==='ok'?'ok':'err');
+  setTimeout(()=>el.className='',2500);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+(async()=>{
+  await initSupabase();
+  updateCounts();
+  renderHome();
+  document.getElementById('loader').classList.add('hide');
+})();
+</script>
+</body>
+</html>
